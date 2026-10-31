@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion, useMotionValue, animate, useReducedMotion } from 'framer-motion';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import {
   Activity,
@@ -42,7 +44,32 @@ import {
   API_BASE_URL,
 } from '@/lib/api';
 
+
+function CountUpNumber({ value }: { value: number }) {
+  const prefersReduced = useReducedMotion();
+  const [display, setDisplay] = useState(prefersReduced ? value : 0);
+  const motionVal = useMotionValue(prefersReduced ? value : 0);
+
+  useEffect(() => {
+    if (prefersReduced) {
+      setDisplay(value);
+      return;
+    }
+    const controls = animate(motionVal, value, {
+      duration: 0.85,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (latest) => {
+        setDisplay(Math.round(latest));
+      },
+    });
+    return () => controls.stop();
+  }, [value, prefersReduced, motionVal]);
+
+  return <span>{display}</span>;
+}
+
 export default function DashboardPage() {
+  const { showToast } = useToast();
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -130,12 +157,14 @@ export default function DashboardPage() {
       await clearSession();
       await fetchTelemetryAndCases();
       setActionMessage('Active session purged. Temporary cases cleared.');
+      showToast('Active session purged. Temporary cases cleared.', 'info');
     }
   };
 
   const handleDownloadPdf = async (caseId: string) => {
     try {
       await downloadReport(caseId, authStatus?.mode === 'enterprise');
+      showToast(`Report for case ${caseId} downloaded`, 'success');
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Report download failed.');
     }
@@ -262,7 +291,7 @@ export default function DashboardPage() {
       {/* Backend & AI Engine Health Status Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: Backend API Status */}
-        <div className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
+        <motion.div initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: 0.05 }} className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider text-[#9A9AAE] font-semibold flex items-center gap-2">
               <Server className="w-4 h-4 text-[#00E5FF]" />
@@ -297,10 +326,10 @@ export default function DashboardPage() {
               ? `Service: ${health?.service || 'AEGIS 2.0 Security Core'}`
               : `Error: ${healthError || 'Could not reach server on port 8000'}`}
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: AI Engine Telemetry */}
-        <div className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
+        <motion.div initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: 0.12 }} className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider text-[#9A9AAE] font-semibold flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#7B3FE4]" />
@@ -351,10 +380,10 @@ export default function DashboardPage() {
                 : 'No calls yet'}
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 3: Storage & Forensics Engines */}
-        <div className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
+        <motion.div initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: 0.19 }} className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider text-[#9A9AAE] font-semibold flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#10B981]" />
@@ -385,7 +414,7 @@ export default function DashboardPage() {
           <div className="pt-2 border-t border-[#1C1C26] text-[11px] text-[#626274]">
             {isEnterprise ? 'Storage Mode: Persistent (Enterprise)' : 'Storage Mode: Ephemeral Session (RAM)'}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Search, Filter & Investigation History Vault */}
@@ -395,7 +424,7 @@ export default function DashboardPage() {
             <h3 className="text-base font-semibold text-[#F5F5F7] flex items-center gap-2">
               <span>{isEnterprise ? 'Enterprise Investigation Vault' : 'Active Session Investigations'}</span>
               <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[#1C1C26] text-[#9A9AAE]">
-                {totalCases} cases
+                <CountUpNumber value={totalCases} /> cases
               </span>
             </h3>
             <p className="text-xs text-[#9A9AAE] mt-0.5">
@@ -477,10 +506,14 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {cases.map((c) => (
-              <div
+            {cases.map((c, cIdx) => (
+              <motion.div
                 key={c.case_id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#13131A] border border-[#1C1C26] hover:border-[#7B3FE4]/40 transition-colors gap-3"
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.25, delay: Math.min(cIdx * 0.04, 0.4) }}
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#13131A] border border-[#1C1C26] hover:border-[#7B3FE4]/50 hover:bg-[#161620] hover:shadow-[0_0_15px_rgba(123,63,228,0.12)] transition-all duration-150 gap-3"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-[#0D0D12] border border-[#1C1C26] flex items-center justify-center shrink-0">
@@ -566,7 +599,7 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
