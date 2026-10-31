@@ -127,3 +127,22 @@ export interface MetricsResult {
   models: ModelMetric[];
 }
 
+export interface SystemHealth {
+  status: string;
+  service: string;
+  timestamp: string;
+  ai_engine: {
+    provider: string;
+    model: string;
+    configured: boolean;
+    status: string;
+  };
+  detectors?: {
+    url_classifier: string;
+    brand_impersonation: string;
+    email_forensics: string;
+    text_normalizer: string;
+  };
+}
+
+

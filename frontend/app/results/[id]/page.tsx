@@ -1,5 +1,11 @@
-import React from 'react';
-import { EmptyStateCard } from '@/components/EmptyStateCard';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { AnalysisResult } from '@/types';
+import { getCase } from '@/lib/api';
+import { AnalysisResultView } from '@/components/analysis/AnalysisResultView';
 
 interface ResultsPageProps {
   params: {
@@ -8,30 +14,71 @@ interface ResultsPageProps {
 }
 
 export default function ResultsPage({ params }: ResultsPageProps) {
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const data = await getCase(params.id);
+      if (data) {
+        setResult(data);
+      } else {
+        setNotFound(true);
+      }
+      setLoading(false);
+    }
+    load();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-5 py-20 flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00E5FF]" />
+        <p className="text-sm text-[#9A9AAE]">Loading case investigation details...</p>
+      </div>
+    );
+  }
+
+  if (notFound || !result) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-5 py-16">
+        <div className="p-8 rounded-2xl bg-[#0D0D12] border border-[#1C1C26] text-center space-y-4">
+          <div className="inline-flex p-3 rounded-xl bg-[#13131A] text-[#F59E0B]">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-[#F5F5F7]">Case Record Not Found</h2>
+          <p className="text-sm text-[#9A9AAE] max-w-md mx-auto">
+            Case <code className="text-[#00E5FF] font-mono">{params.id}</code> could not be found in active memory or mock records.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/analyze"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7B3FE4] hover:bg-[#8E54F7] text-[#F5F5F7] text-xs font-semibold transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Analysis Workbench</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-5 py-12 md:py-16">
-      <div className="mb-10">
-        <h1 className="text-3xl font-semibold text-[#F5F5F7] tracking-tight">
-          Investigation Report: {params.id}
-        </h1>
-        <p className="mt-2 text-sm text-[#9A9AAE]">
-          Detailed breakdown of risk score, explainable findings, link redirects, and cryptographic evidence.
-        </p>
+    <div className="w-full max-w-6xl mx-auto px-5 py-10 md:py-14 space-y-6">
+      <div className="flex items-center justify-between">
+        <Link
+          href="/analyze"
+          className="inline-flex items-center gap-2 text-xs font-medium text-[#9A9AAE] hover:text-[#00E5FF] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Analysis Workbench</span>
+        </Link>
       </div>
 
-      <EmptyStateCard
-        badge="Phase F3 Staging"
-        title="Investigation Results Viewer"
-        description={`Report view for investigation ${params.id} featuring risk gauge, NLP highlights, link trail, and Indian regulatory action guidance.`}
-        actionLabel="Back to Analyse"
-        actionHref="/analyze"
-        icon={
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        }
-      />
+      <AnalysisResultView result={result} />
     </div>
   );
 }
-

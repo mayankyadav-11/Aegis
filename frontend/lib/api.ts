@@ -3,6 +3,7 @@ import {
   AnalyzeRequest,
   MetricsResult,
   RedTeamResult,
+  SystemHealth,
 } from '@/types';
 
 export const MOCK_CASES: AnalysisResult[] = [
@@ -265,45 +266,166 @@ export const MOCK_CASES: AnalysisResult[] = [
   },
 ];
 
-export async function analyze(data: AnalyzeRequest): Promise<AnalysisResult> {
-  // Simulate network latency
-  await new Promise((resolve) => setTimeout(resolve, 600));
+// Runtime case memory store to preserve recent live analyses across navigation
+const SESSION_CASES: Map<string, AnalysisResult> = new Map();
 
-  // Determine which mock case to return based on heuristic or content
-  const contentLower = data.content.toLowerCase();
-  if (contentLower.includes('kyc') || contentLower.includes('sbi') || data.type === 'sms') {
-    return {
-      ...MOCK_CASES[0],
-      case_id: `AEG-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      input_type: data.type,
-      created_at: new Date().toISOString(),
-    };
-  } else if (contentLower.includes('refund') || contentLower.includes('tax') || data.type === 'email') {
-    return {
-      ...MOCK_CASES[1],
-      case_id: `AEG-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      input_type: data.type,
-      created_at: new Date().toISOString(),
-    };
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+
+/**
+ * Check backend API health and detector readiness.
+ */
+export async function checkHealth(): Promise<{
+  online: boolean;
+  health?: SystemHealth;
+  error?: string;
+}> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      return {
+        online: false,
+        error: `Backend responded with HTTP status ${res.status}`,
+      };
+    }
+
+    const data: SystemHealth = await res.json();
+    return { online: true, health: data };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.name === 'AbortError'
+          ? 'Connection timed out (backend not responding)'
+          : err.message
+        : 'Cannot connect to backend';
+    return { online: false, error: message };
+  }
+}
+
+/**
+ * Execute real backend analysis across URL, Text, SMS, or Email endpoints.
+ */
+export async function analyze(data: AnalyzeRequest): Promise<AnalysisResult> {
+  let endpoint = '/api/analyze/text';
+  let bodyPayload: Record<string, unknown> = {};
+
+  const cleanContent = data.content.trim();
+
+  switch (data.type) {
+    case 'url': {
+      endpoint = '/api/analyze/url';
+      bodyPayload = { url: cleanContent };
+      break;
+    }
+    case 'sms': {
+      endpoint = '/api/analyze/sms';
+      bodyPayload = {
+        content: cleanContent,
+        input_type: 'sms',
+        sender: data.sender?.trim() || null,
+      };
+      break;
+    }
+    case 'email': {
+      endpoint = '/api/analyze/email';
+      bodyPayload = {
+        content: cleanContent,
+        sender: data.sender?.trim() || null,
+        subject: data.subject?.trim() || null,
+      };
+      break;
+    }
+    case 'text':
+    case 'message':
+    default: {
+      endpoint = '/api/analyze/text';
+      bodyPayload = {
+        content: cleanContent,
+        input_type: data.type === 'message' ? 'message' : 'text',
+        sender: data.sender?.trim() || null,
+      };
+      break;
+    }
   }
 
-  return {
-    ...MOCK_CASES[2],
-    case_id: `AEG-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-    input_type: data.type,
-    created_at: new Date().toISOString(),
-  };
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for LLM
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(bodyPayload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      let errorDetail = `Backend error (${response.status})`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson.detail) {
+          if (Array.isArray(errorJson.detail)) {
+            errorDetail = errorJson.detail.map((d: { msg?: string }) => d.msg || '').join(', ');
+          } else if (typeof errorJson.detail === 'string') {
+            errorDetail = errorJson.detail;
+          }
+        }
+      } catch {
+        // Fall back to default status string
+      }
+      throw new Error(errorDetail);
+    }
+
+    const result: AnalysisResult = await response.json();
+
+    // Cache the result in memory for results page lookup
+    if (result && result.case_id) {
+      SESSION_CASES.set(result.case_id.toLowerCase(), result);
+    }
+
+    return result;
+  } catch (err: unknown) {
+    // If it's a TypeError from fetch (Network Failed / Connection Refused)
+    if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+      throw new Error(
+        `AEGIS backend unreachable at ${API_BASE_URL}. Ensure FastAPI is running on port 8000.`
+      );
+    }
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Analysis timed out after 30 seconds.');
+    }
+    throw err;
+  }
 }
 
 export async function getCases(): Promise<AnalysisResult[]> {
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  return MOCK_CASES;
+  // Return all session cases combined with mock cases for review
+  const sessionList = Array.from(SESSION_CASES.values());
+  const seenIds = new Set(sessionList.map((c) => c.case_id.toLowerCase()));
+  const mocks = MOCK_CASES.filter((c) => !seenIds.has(c.case_id.toLowerCase()));
+  return [...sessionList, ...mocks];
 }
 
 export async function getCase(id: string): Promise<AnalysisResult | null> {
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  const found = MOCK_CASES.find((c) => c.case_id.toLowerCase() === id.toLowerCase());
-  return found || MOCK_CASES[0];
+  const normalizedId = id.toLowerCase();
+  if (SESSION_CASES.has(normalizedId)) {
+    return SESSION_CASES.get(normalizedId)!;
+  }
+  const found = MOCK_CASES.find((c) => c.case_id.toLowerCase() === normalizedId);
+  return found || null;
 }
 
 export async function runRedTeam(): Promise<RedTeamResult> {
