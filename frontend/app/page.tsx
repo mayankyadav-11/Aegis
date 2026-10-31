@@ -81,17 +81,17 @@ export default function LandingPage() {
       {/* Hero Copy Block */}
       <div className="relative z-10 w-full max-w-[760px] mx-auto px-5 text-center mt-[10vh] md:mt-[14vh] select-none">
         {/* Two-line Headline */}
-        <h1 className="font-medium tracking-[-0.035em] leading-[1.06] text-[clamp(38px,4.2vw,70px)]">
-          <span className="block text-[#9A9AAE] font-medium">
+        <h1 className="font-heading tracking-[-0.02em] leading-[1.08] text-[clamp(38px,4.2vw,70px)]">
+          <span className="block text-[#9A9AAE] font-semibold">
             Detect the Threat.
           </span>
-          <span className="block text-[#F5F5F7] font-semibold mt-1">
+          <span className="block text-[#E6E6EA] font-bold mt-1">
             Understand the Risk.
           </span>
         </h1>
 
         {/* Subline */}
-        <p className="mt-5 mx-auto max-w-[460px] text-[#9A9AAE] text-[clamp(13.5px,1.1vw,16px)] leading-relaxed">
+        <p className="mt-5 mx-auto max-w-[540px] font-body text-[#9A9AAE] text-[16px] md:text-[17px] leading-[1.6]">
           AI-powered phishing and scam detection that shows you why, across
           email, SMS, URLs and messages.
         </p>
@@ -104,7 +104,7 @@ export default function LandingPage() {
 
             {/* Jet black pill */}
             <div className="hero-cta-pill flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#0D0D12] border border-[#1C1C26] hover:border-[#7B3FE4]/70 shadow-2xl">
-              <span className="text-[14px] font-medium text-[#F5F5F7] tracking-tight">
+              <span className="font-body text-[16px] font-medium text-[#E6E6EA] tracking-tight">
                 Analyse a message
               </span>
               <svg
@@ -127,14 +127,14 @@ export default function LandingPage() {
 
       {/* Four Channel Badges at bottom */}
       <div className="relative z-10 w-full pb-[clamp(28px,6vh,56px)] px-4">
-        <div className="flex items-center justify-center flex-wrap gap-6 sm:gap-10 md:gap-14 text-[clamp(13px,1.1vw,15.5px)] font-medium text-[#9A9AAE]">
+        <div className="flex items-center justify-center flex-wrap gap-6 sm:gap-10 md:gap-14 font-mono font-medium text-[#9A9AAE]">
           {channels.map((channel) => (
             <div
               key={channel.name}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-transparent hover:border-[#1C1C26] hover:bg-[#0D0D12]/60 transition-all duration-200"
+              className="group flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-transparent hover:border-[#1C1C26] hover:bg-[#0D0D12]/60 transition-all duration-200"
             >
-              <span className="opacity-80">{channel.icon}</span>
-              <span className="tracking-tight text-[#9A9AAE] hover:text-[#F5F5F7] transition-colors">
+              <span className="opacity-80 group-hover:opacity-100 transition-opacity">{channel.icon}</span>
+              <span className="font-mono text-[13px] md:text-[14px] uppercase tracking-[0.08em] font-medium text-[#9A9AAE] group-hover:text-[#E6E6EA] transition-colors">
                 {channel.name}
               </span>
             </div>
@@ -144,4 +144,3 @@ export default function LandingPage() {
     </section>
   );
 }
-

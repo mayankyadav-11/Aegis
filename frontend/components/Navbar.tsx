@@ -19,7 +19,7 @@ export function Navbar() {
         {/* Brand: Shield Mark + AEGIS */}
         <Link
           href="/"
-          className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-[#F5F5F7] group transition-opacity hover:opacity-90"
+          className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-[#E6E6EA] group transition-opacity hover:opacity-90"
         >
           <div className="relative flex items-center justify-center w-7 h-7 rounded-md bg-[#0D0D12] border border-[#1C1C26] shadow-inner group-hover:border-[#7B3FE4]/50 transition-colors">
             {/* Minimalist modern shield SVG */}
@@ -36,20 +36,20 @@ export function Navbar() {
               <path d="m9 12 2 2 4-4" stroke="#7B3FE4" strokeWidth="2.5" />
             </svg>
           </div>
-          <span className="tracking-[0.08em] font-bold text-sm text-[#F5F5F7]">
+          <span className="font-heading tracking-[0.08em] font-bold text-sm text-[#E6E6EA]">
             AEGIS
           </span>
         </Link>
 
         {/* Center Links (hidden on mobile <= 760px) */}
-        <nav className="hidden md:flex items-center gap-7 lg:gap-9 text-[13.5px] font-medium text-[#9A9AAE]">
+        <nav className="hidden md:flex items-center gap-7 lg:gap-9 font-body text-[14px] font-medium text-[#9A9AAE]">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`transition-colors duration-200 hover:text-[#F5F5F7] ${
+                className={`transition-colors duration-200 hover:text-[#E6E6EA] ${
                   isActive ? 'text-[#00E5FF] font-semibold' : ''
                 }`}
               >
@@ -63,7 +63,7 @@ export function Navbar() {
         <div className="flex items-center">
           <Link
             href="/dashboard"
-            className="group relative inline-flex items-center justify-center px-4 md:px-5 py-2 md:py-2.5 text-[13px] md:text-[13.5px] font-medium text-[#F5F5F7] bg-[#0D0D12] hover:bg-[#13131A] border border-[#1C1C26] hover:border-[#7B3FE4]/60 rounded-full transition-all duration-200 hover:-translate-y-0.5 shadow-sm active:translate-y-0"
+            className="group relative inline-flex items-center justify-center px-4 md:px-5 py-2 md:py-2.5 font-body text-[13.5px] font-medium text-[#E6E6EA] bg-[#0D0D12] hover:bg-[#13131A] border border-[#1C1C26] hover:border-[#7B3FE4]/60 rounded-full transition-all duration-200 hover:-translate-y-0.5 shadow-sm active:translate-y-0"
           >
             <span className="relative z-10 flex items-center gap-2">
               <span>Launch console</span>
@@ -83,4 +83,3 @@ export function Navbar() {
     </header>
   );
 }
-
