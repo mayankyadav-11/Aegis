@@ -27,7 +27,7 @@ const FAQ_ITEMS: FAQItem[] = [
     id: 'message-saved',
     question: 'Is my message saved?',
     answer:
-      'AEGIS saves each analysis as a case so you can reopen it later in History. Avoid pasting passwords, card numbers or other secrets.',
+      'AEGIS saves each analysis as a case so you can review it in the Dashboard. Avoid pasting passwords, card numbers or other secrets.',
   },
   {
     id: 'cant-check',
