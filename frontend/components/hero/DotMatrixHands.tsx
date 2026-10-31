@@ -40,6 +40,7 @@ export function DotMatrixHands() {
 
     let animId: number;
     let isTabVisible = true;
+    let isIntersecting = true;
     let prefersReducedMotion = false;
     let loopStartTime = performance.now();
 
@@ -132,10 +133,13 @@ export function DotMatrixHands() {
       const a = (2 * Math.PI * t) / LOOP;
       const isPortrait = H > W;
 
-      const hw = isPortrait ? W * 0.66 : W * 0.53;
-      // Sheet aspect ratio: (0.40 * 1520) / (0.47 * 2688) ≈ 0.481256
-      const hh = hw * ((0.4 * 1520) / (0.47 * 2688));
-      const cy = isPortrait ? H * 0.66 : H * 0.54;
+      const SHEET_ASPECT = (0.4 * 1520) / (0.47 * 2688);
+      const targetHwFromW = isPortrait ? W * 0.66 : W * 0.53;
+      // If the hands zone is short, uniformly scale down to keep full hands visible without cropping
+      const targetHwFromH = (H * 0.78) / SHEET_ASPECT;
+      const hw = Math.min(targetHwFromW, targetHwFromH);
+      const hh = hw * SHEET_ASPECT;
+      const cy = isPortrait ? Math.min(H * 0.60, H - hh * 0.52) : H * 0.50;
 
       // 1. Clear offscreen fields with white
       fA.fillStyle = '#ffffff';
@@ -183,9 +187,8 @@ export function DotMatrixHands() {
       const halfCols = Math.floor(cols / 2);
       const tick = Math.floor(t * 7);
 
-      // 2. Clear canvas with Jet Black #050507
-      ctx.fillStyle = '#050507';
-      ctx.fillRect(0, 0, W, H);
+      // 2. Clear canvas to transparent so LandingBackground shows through
+      ctx.clearRect(0, 0, W, H);
 
       // Row glitch precomputation
       const rowShifts = new Int32Array(rows);
@@ -314,7 +317,7 @@ export function DotMatrixHands() {
         render(2.0);
       } else {
         const loop = (now: number) => {
-          if (isTabVisible) {
+          if (isTabVisible && isIntersecting) {
             const elapsed = (now - loopStartTime) / 1000;
             render(elapsed);
           }
@@ -333,6 +336,24 @@ export function DotMatrixHands() {
     };
     img.src = LOCAL_IMAGE_URL;
 
+    // Intersection observer to pause loop when off-screen
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry.isIntersecting;
+      },
+      { threshold: 0 }
+    );
+    observer.observe(canvas);
+
+    // ResizeObserver for exact container sizing in flexbox
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      resizeObserver = new ResizeObserver(() => {
+        handleResize();
+      });
+      resizeObserver.observe(canvas.parentElement);
+    }
+
     // Page visibility listener
     const handleVisibilityChange = () => {
       isTabVisible = !document.hidden;
@@ -342,21 +363,22 @@ export function DotMatrixHands() {
 
     return () => {
       if (animId) cancelAnimationFrame(animId);
+      observer.disconnect();
+      if (resizeObserver) resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
 
   return (
-    <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
+    <div className="absolute inset-0 w-full h-full bg-transparent pointer-events-none overflow-hidden">
       <canvas
         ref={canvasRef}
         id="dots"
-        className={`w-full h-full block transition-opacity duration-700 ${
+        className={`w-full h-full block bg-transparent pointer-events-none transition-opacity duration-700 ${
           imageLoaded ? 'opacity-100' : 'opacity-0'
         }`}
       />
     </div>
   );
 }
-
