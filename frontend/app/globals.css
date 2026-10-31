@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #050507;
+  --surface: #0D0D12;
+  --surface-hover: #13131A;
+  --border: #1C1C26;
+  --border-strong: #2A2A3A;
+
+  /* Brand Palette */
+  --amethyst: #7B3FE4;
+  --amethyst-hover: #8E54F7;
+  --amethyst-subtle: rgba(123, 63, 228, 0.15);
+  --cyan: #00E5FF;
+  --cyan-hover: #33EBFF;
+  --cyan-subtle: rgba(0, 229, 255, 0.15);
+
+  /* Typography */
+  --text-primary: #F5F5F7;
+  --text-secondary: #9A9AAE;
+  --text-muted: #626274;
+
+  /* Risk Severity Tokens (strictly decoupled from brand) */
+  --risk-safe: #10B981;
+  --risk-safe-bg: rgba(16, 185, 129, 0.12);
+  --risk-suspicious: #F59E0B;
+  --risk-suspicious-bg: rgba(245, 158, 11, 0.12);
+  --risk-high: #F97316;
+  --risk-high-bg: rgba(249, 115, 22, 0.12);
+  --risk-critical: #EF4444;
+  --risk-critical-bg: rgba(239, 68, 68, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: #050507;
+  color: #F5F5F7;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+/* Amethyst-to-cyan glow under the CTA pill */
+.hero-cta-glow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -6px;
+  height: 18px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #7B3FE4 0%, #00E5FF 100%);
+  filter: blur(10px);
+  opacity: 0.85;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-cta-btn:hover .hero-cta-glow {
+  opacity: 1;
+  filter: blur(14px);
+  bottom: -8px;
+}
+
+.hero-cta-pill {
+  position: relative;
+  z-index: 2;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-cta-btn:hover .hero-cta-pill {
+  transform: translateY(-1px);
+}
+
