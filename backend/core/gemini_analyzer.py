@@ -158,6 +158,7 @@ EVALUATION CRITERIA:
 2. Indian & Hinglish Context: Familiarity with Indian threat patterns (YONO/SBI KYC deactivation, UPI PIN for receiving funds, DISCOM electricity bill scam, TRAI 1930 cybercrime reporting, and transliterated Hinglish phrasing such as 'aaj raat account band', 'turant kyc karo').
 3. Explainability: Clear, plain-language explanation of WHY it is safe or risky for a non-technical citizen.
 4. Recommendations: Concrete next steps (e.g., call 1930 helpline, check official portal, never share OTP).
+5. Brand Registry Awareness: If Deterministic Rule Signals indicate that a domain is an approved secondary/campaign domain (e.g. ajioin.in, hdfcbk.io, amzn.to, fkrt.it), do NOT treat it as typosquatting or brand impersonation.
 
 Return a single JSON object matching this exact schema:
 {

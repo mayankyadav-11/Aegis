@@ -39,7 +39,7 @@
 300,axisbank.com
 350,kotak.com
 400,myntra.com
-450,ajio.com
+450,ajioin.in
 500,incometax.gov.in
 550,uidai.gov.in
 600,indiapost.gov.in

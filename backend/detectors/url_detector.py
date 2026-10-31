@@ -404,6 +404,18 @@ def analyze_url_deterministic(raw_url: str, inspect_links: bool = False) -> UrlA
 
             if intel_result.is_approved_secondary:
                 is_approved_secondary = True
+                flags.append("approved_campaign_domain")
+                findings.append(Finding(
+                    category=FindingCategory.URL,
+                    severity=FindingSeverity.LOW,
+                    evidence=f"Brand Registry: Domain '{domain_str}' is an approved secondary/campaign domain for {intel_result.brand or 'brand'}",
+                    explanation=(
+                        f"This domain is documented as an approved secondary/campaign tracking link for {intel_result.brand}. "
+                        "It is not typosquatting and is not an adversarial impersonation attempt."
+                    ),
+                    recommended_action="Verify specific offer details on the official app or portal.",
+                    source_module="brand_registry",
+                ))
         except Exception:
             pass
 

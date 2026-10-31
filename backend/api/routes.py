@@ -31,15 +31,10 @@ from core.auth import (
     generate_session_id,
     verify_enterprise_token,
 )
-from core.gemini_analyzer import analyze_with_gemini, get_gemini_provider_status
+from core.gemini_analyzer import get_gemini_provider_status
 from core.pdf_report import generate_case_pdf_report
 from core.storage import persistent_storage, session_storage
-from detectors.brand_detector import analyze_brand_and_social_engineering
-from detectors.email_detector import parse_and_inspect_email
-from detectors.file_forensics import parse_eml_bytes, parse_pdf_bytes
-from detectors.screenshot_detector import analyze_screenshot
-from detectors.text_detector import analyze_text_content
-from detectors.url_detector import analyze_url_deterministic
+from core.unified_pipeline import unified_pipeline
 from schemas import (
     AIStatus,
     AnalysisCompleteness,
@@ -72,6 +67,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Helpers & Auth Dependency
 # ---------------------------------------------------------------------------
+
 
 def _generate_case_id() -> str:
     """Generate unique case ID in the format AEG-YYYY-XXXX."""
@@ -122,6 +118,57 @@ def _build_ai_status(gemini_res_available: bool, model: str = "") -> AIStatus:
         message=(
             f"Python deterministic detection active. Gemini unavailable"
             + (f": {provider_status['last_failure_reason']}" if provider_status.get("last_failure_reason") else ".")
+        ),
+    )
+
+
+def _fusion_to_response(
+    fusion,
+    *,
+    case_id: str,
+    created_at: str,
+    input_type: InputType,
+    raw_content: str,
+    extracted_urls: Optional[list[ExtractedUrl]] = None,
+    link_trail: Optional[list[LinkHop]] = None,
+    file_name: Optional[str] = None,
+    extracted_text: Optional[str] = None,
+) -> AnalysisResponse:
+    """
+    Convert a FusionResult into a fully-populated AnalysisResponse.
+    Maintains 100% backward compatibility with the existing frontend contract.
+    """
+    evidence_hash = _compute_evidence_hash(case_id, input_type.value, raw_content, fusion.risk_score)
+    return AnalysisResponse(
+        case_id=case_id,
+        input_type=input_type,
+        created_at=created_at,
+        risk_score=fusion.risk_score,
+        risk_level=fusion.risk_level,
+        verdict=fusion.verdict,
+        confidence=fusion.confidence,
+        signal_scores=fusion.signal_scores,
+        model_scores=ModelScores(
+            url_classifier=round(fusion.signal_scores.url / 100.0, 2),
+            text_classifier=round(fusion.signal_scores.nlp / 100.0, 2),
+            anomaly=0.0,
+        ),
+        findings=fusion.findings,
+        extracted_urls=extracted_urls or [],
+        link_trail=link_trail or [],
+        highlights=fusion.highlights,
+        unavailable_checks=fusion.unavailable_checks,
+        explanation=fusion.explanation,
+        recommendations=fusion.recommendations,
+        evidence_hash=evidence_hash,
+        blockchain_status=BlockchainStatus.NOT_ENABLED,
+        transaction_hash=None,
+        file_name=file_name,
+        extracted_text=extracted_text,
+        ai_status=_build_ai_status(fusion.gemini_available),
+        analysis_completeness=AnalysisCompleteness(
+            level=fusion.analysis_completeness_level,
+            unavailable_checks=fusion.unavailable_checks,
         ),
     )
 
@@ -243,39 +290,19 @@ def analyze_url(
     created_at = datetime.now(timezone.utc).isoformat()
     raw_url = (request.url or request.content or "").strip()
 
-    # Deterministic URL and SSRF inspection
-    url_res = analyze_url_deterministic(raw_url, inspect_links=True)
-
-    findings: list[Finding] = list(url_res.findings)
-    unavailable: list[str] = []
-
-    gemini_res = analyze_with_gemini(
-        content=f"URL under inspection: {raw_url}\nDomain: {url_res.domain}\nFlags: {', '.join(url_res.flags)}",
-        channel_type="url",
-        deterministic_findings=findings,
+    # Run the unified pipeline
+    fusion = unified_pipeline.process_input(
+        input_type="url",
+        content=raw_url,
+        inspect_links=True,
     )
 
-    if gemini_res.available:
-        findings.extend(gemini_res.findings)
-        explanation = gemini_res.explanation
-        recommendations = gemini_res.recommendations
-        risk_score = max(url_res.risk_score, gemini_res.risk_score)
-        confidence = gemini_res.confidence
-    else:
-        explanation = (
-            f"Analyzed destination '{url_res.domain}'. "
-            f"Determined reputation as {url_res.reputation.value} based on structural feature analysis."
-        )
-        recommendations = [
-            "Do not enter personal credentials or OTPs on this domain.",
-            "Verify the exact URL domain matches the institution's primary address.",
-        ]
-        risk_score = url_res.risk_score
-        confidence = Confidence.HIGH if url_res.risk_score >= 50 else Confidence.MEDIUM
-        unavailable.append(gemini_res.error or "Gemini API unavailable: running in deterministic mode")
-
-    risk_level = _score_to_risk_level(risk_score)
-    verdict = _score_to_verdict(risk_score)
+    # Build extracted_urls and link_trail for backward compatibility
+    # (URL detector is also called inside the pipeline — we call it once more
+    #  here only to get domain/reputation/flags/link_trail for the response model,
+    #  since FusionResult does not store these fields directly.)
+    from detectors.url_detector import analyze_url_deterministic as _det
+    url_res = _det(raw_url, inspect_links=True)
 
     extracted_urls = [
         ExtractedUrl(
@@ -285,59 +312,21 @@ def analyze_url(
             flags=url_res.flags,
         )
     ]
+    link_trail = [
+        LinkHop(hop=h.hop, url=h.url, status=h.status, final=h.final,
+                page_title=h.page_title, flags=h.flags)
+        for h in url_res.link_trail
+    ]
 
-    link_trail: list[LinkHop] = []
-    for h in url_res.link_trail:
-        link_trail.append(
-            LinkHop(
-                hop=h.hop,
-                url=h.url,
-                status=h.status,
-                final=h.final,
-                page_title=h.page_title,
-                flags=h.flags,
-            )
-        )
-
-    evidence_hash = _compute_evidence_hash(case_id, "url", raw_url, risk_score)
-
-    result = AnalysisResponse(
+    result = _fusion_to_response(
+        fusion,
         case_id=case_id,
-        input_type=InputType.URL,
         created_at=created_at,
-        risk_score=risk_score,
-        risk_level=risk_level,
-        verdict=verdict,
-        confidence=confidence,
-        signal_scores=SignalScores(
-            nlp=gemini_res.risk_score if gemini_res.available else 0,
-            url=url_res.risk_score,
-            sender=0,
-            email_auth=0,
-            context=20 if url_res.flags else 0,
-        ),
-        model_scores=ModelScores(
-            url_classifier=round(url_res.risk_score / 100.0, 2),
-            text_classifier=round(gemini_res.risk_score / 100.0, 2) if gemini_res.available else 0.0,
-            anomaly=0.0,
-        ),
-        findings=findings,
+        input_type=InputType.URL,
+        raw_content=raw_url,
         extracted_urls=extracted_urls,
         link_trail=link_trail,
-        highlights=[],
-        unavailable_checks=unavailable,
-        explanation=explanation,
-        recommendations=recommendations,
-        evidence_hash=evidence_hash,
-        blockchain_status=BlockchainStatus.NOT_ENABLED,
-        transaction_hash=None,
-        ai_status=_build_ai_status(gemini_res.available),
-        analysis_completeness=AnalysisCompleteness(
-            level="complete" if gemini_res.available else "partial",
-            unavailable_checks=unavailable,
-        ),
     )
-
     _store_case_in_context(result, auth, response)
     return result
 
@@ -354,99 +343,42 @@ def analyze_text(
 ):
     """
     Analyse freeform message text from WhatsApp, Telegram, or other chat platforms.
+    Delegates to the unified pipeline for canonical evidence extraction and evidence fusion.
     """
     case_id = _generate_case_id()
     created_at = datetime.now(timezone.utc).isoformat()
 
-    # Core text threat analysis (Normaliser + Brand Engine + Gemini)
-    text_analysis = analyze_text_content(
+    channel = "text" if request.input_type != InputType.MESSAGE else "message"
+    fusion = unified_pipeline.process_input(
+        input_type=channel,
         content=request.content,
-        channel_type="text",
         sender=request.sender,
         subject=request.subject,
     )
 
-    findings: list[Finding] = list(text_analysis.findings)
-    highlights: list[TextHighlight] = list(text_analysis.highlights)
-    unavailable: list[str] = list(text_analysis.unavailable_checks)
-
-    # Inspect all embedded URLs
-    extracted_urls: list[ExtractedUrl] = []
-    link_trail: list[LinkHop] = []
-    max_url_score = 0
-
-    for extracted_url in text_analysis.normalisation.extracted_urls:
-        url_res = analyze_url_deterministic(extracted_url, inspect_links=False)
+    # Build extracted_urls for the response (reuse URL detector output stored in findings)
+    from detectors.url_detector import analyze_url_deterministic as _det
+    from core.normalizer import normalise as _norm
+    norm_result = _norm(request.content)
+    extracted_urls = []
+    link_trail = []
+    for u in norm_result.extracted_urls:
+        u_res = _det(u, inspect_links=False)
         extracted_urls.append(ExtractedUrl(
-            url=extracted_url,
-            domain=url_res.domain,
-            reputation=url_res.reputation,
-            flags=url_res.flags,
+            url=u, domain=u_res.domain, reputation=u_res.reputation, flags=u_res.flags,
         ))
-        findings.extend(url_res.findings)
-        max_url_score = max(max_url_score, url_res.risk_score)
-        if url_res.link_trail:
-            link_trail.extend(url_res.link_trail)
+        link_trail.extend(u_res.link_trail)
 
-    # Risk Fusion
-    risk_score = max(text_analysis.combined_risk_score, max_url_score)
-    risk_level = _score_to_risk_level(risk_score)
-    verdict = _score_to_verdict(risk_score)
-
-    if text_analysis.gemini_analysis.available:
-        explanation = text_analysis.gemini_analysis.explanation
-        recommendations = text_analysis.gemini_analysis.recommendations
-        confidence = text_analysis.gemini_analysis.confidence
-    else:
-        confidence = Confidence.HIGH if findings else Confidence.MEDIUM
-        explanation = (
-            f"Analyzed {len(request.content)} characters of message text. "
-            + (f"Identified threat signals: {len(findings)} suspicious patterns." if findings else "No immediate social engineering or phishing anomalies detected.")
-        )
-        recommendations = [
-            "Do not follow urgent instructions, click unverified links, or transfer money.",
-            "Verify all claims directly through official verified channels.",
-        ]
-
-    evidence_hash = _compute_evidence_hash(case_id, "text", request.content, risk_score)
-
-    result = AnalysisResponse(
+    result = _fusion_to_response(
+        fusion,
         case_id=case_id,
-        input_type=InputType.TEXT if request.input_type != InputType.MESSAGE else InputType.MESSAGE,
         created_at=created_at,
-        risk_score=risk_score,
-        risk_level=risk_level,
-        verdict=verdict,
-        confidence=confidence,
-        signal_scores=SignalScores(
-            nlp=text_analysis.combined_risk_score,
-            url=max_url_score,
-            sender=text_analysis.brand_analysis.risk_boost if request.sender else 0,
-            email_auth=0,
-            context=min(100, len(findings) * 20),
-        ),
-        model_scores=ModelScores(
-            url_classifier=round(max_url_score / 100.0, 2),
-            text_classifier=round(text_analysis.combined_risk_score / 100.0, 2),
-            anomaly=0.0,
-        ),
-        findings=findings,
+        input_type=InputType.TEXT if request.input_type != InputType.MESSAGE else InputType.MESSAGE,
+        raw_content=request.content,
         extracted_urls=extracted_urls,
-        link_trail=link_trail,
-        highlights=highlights,
-        unavailable_checks=unavailable,
-        explanation=explanation,
-        recommendations=recommendations,
-        evidence_hash=evidence_hash,
-        blockchain_status=BlockchainStatus.NOT_ENABLED,
-        transaction_hash=None,
-        ai_status=_build_ai_status(text_analysis.gemini_analysis.available),
-        analysis_completeness=AnalysisCompleteness(
-            level="complete" if text_analysis.gemini_analysis.available else "partial",
-            unavailable_checks=unavailable,
-        ),
+        link_trail=[LinkHop(hop=h.hop, url=h.url, status=h.status, final=h.final,
+                            page_title=h.page_title, flags=h.flags) for h in link_trail],
     )
-
     _store_case_in_context(result, auth, response)
     return result
 
@@ -463,105 +395,41 @@ def analyze_sms(
 ):
     """
     Analyse SMS message and sender ID for smishing and Indian telecommunications fraud.
+    Delegates to the unified pipeline.
     """
     case_id = _generate_case_id()
     created_at = datetime.now(timezone.utc).isoformat()
 
-    # Core text threat analysis
-    text_analysis = analyze_text_content(
+    fusion = unified_pipeline.process_input(
+        input_type="sms",
         content=request.content,
-        channel_type="sms",
         sender=request.sender,
         subject=request.subject,
     )
 
-    findings: list[Finding] = list(text_analysis.findings)
-    highlights: list[TextHighlight] = list(text_analysis.highlights)
-    unavailable: list[str] = list(text_analysis.unavailable_checks)
-
-    # Note channel-specific unavailable checks honestly
-    unavailable.extend([
-        "Email authentication: not applicable for SMS channel",
-        "Carrier DLT telemetry: carrier gateway API unavailable",
-    ])
-
-    # Inspect all embedded URLs
-    extracted_urls: list[ExtractedUrl] = []
-    link_trail: list[LinkHop] = []
-    max_url_score = 0
-
-    for extracted_url in text_analysis.normalisation.extracted_urls:
-        url_res = analyze_url_deterministic(extracted_url, inspect_links=False)
+    # Build extracted_urls
+    from detectors.url_detector import analyze_url_deterministic as _det
+    from core.normalizer import normalise as _norm
+    norm_result = _norm(request.content)
+    extracted_urls = []
+    link_trail = []
+    for u in norm_result.extracted_urls:
+        u_res = _det(u, inspect_links=False)
         extracted_urls.append(ExtractedUrl(
-            url=extracted_url,
-            domain=url_res.domain,
-            reputation=url_res.reputation,
-            flags=url_res.flags,
+            url=u, domain=u_res.domain, reputation=u_res.reputation, flags=u_res.flags,
         ))
-        findings.extend(url_res.findings)
-        max_url_score = max(max_url_score, url_res.risk_score)
-        if url_res.link_trail:
-            link_trail.extend(url_res.link_trail)
+        link_trail.extend(u_res.link_trail)
 
-    # Risk Fusion
-    risk_score = max(text_analysis.combined_risk_score, max_url_score)
-    risk_level = _score_to_risk_level(risk_score)
-    verdict = _score_to_verdict(risk_score)
-
-    if text_analysis.gemini_analysis.available:
-        explanation = text_analysis.gemini_analysis.explanation
-        recommendations = text_analysis.gemini_analysis.recommendations
-        confidence = text_analysis.gemini_analysis.confidence
-    else:
-        confidence = Confidence.HIGH if findings else Confidence.MEDIUM
-        explanation = (
-            f"SMS analysis completed for sender '{request.sender or 'Unknown'}'. "
-            + (f"Identified {len(findings)} threat indicators including brand impersonation or malicious URL." if findings else "No immediate smishing indicators identified.")
-        )
-        recommendations = [
-            "Never reply or call phone numbers mentioned in unsolicited SMS.",
-            "Report phishing SMS to 1909 (TRAI DND) or dial 1930 for cyber financial fraud.",
-        ]
-
-    evidence_hash = _compute_evidence_hash(case_id, "sms", request.content, risk_score)
-
-    result = AnalysisResponse(
+    result = _fusion_to_response(
+        fusion,
         case_id=case_id,
-        input_type=InputType.SMS,
         created_at=created_at,
-        risk_score=risk_score,
-        risk_level=risk_level,
-        verdict=verdict,
-        confidence=confidence,
-        signal_scores=SignalScores(
-            nlp=text_analysis.combined_risk_score,
-            url=max_url_score,
-            sender=text_analysis.brand_analysis.risk_boost if request.sender else 0,
-            email_auth=0,
-            context=min(100, len(findings) * 20),
-        ),
-        model_scores=ModelScores(
-            url_classifier=round(max_url_score / 100.0, 2),
-            text_classifier=round(text_analysis.combined_risk_score / 100.0, 2),
-            anomaly=0.0,
-        ),
-        findings=findings,
+        input_type=InputType.SMS,
+        raw_content=request.content,
         extracted_urls=extracted_urls,
-        link_trail=link_trail,
-        highlights=highlights,
-        unavailable_checks=unavailable,
-        explanation=explanation,
-        recommendations=recommendations,
-        evidence_hash=evidence_hash,
-        blockchain_status=BlockchainStatus.NOT_ENABLED,
-        transaction_hash=None,
-        ai_status=_build_ai_status(text_analysis.gemini_analysis.available),
-        analysis_completeness=AnalysisCompleteness(
-            level="complete" if text_analysis.gemini_analysis.available else "partial",
-            unavailable_checks=unavailable,
-        ),
+        link_trail=[LinkHop(hop=h.hop, url=h.url, status=h.status, final=h.final,
+                            page_title=h.page_title, flags=h.flags) for h in link_trail],
     )
-
     _store_case_in_context(result, auth, response)
     return result
 
@@ -579,107 +447,51 @@ def analyze_email(
     """
     Analyse raw email or .eml payload for display name spoofing, reply-to mismatch,
     header forensics (SPF/DKIM/DMARC status), and body content phishing.
+    Delegates to the unified pipeline.
     """
     case_id = _generate_case_id()
     created_at = datetime.now(timezone.utc).isoformat()
 
-    # 1. Deterministic Email Forensics (Headers, Sender, Display Name)
-    email_res = parse_and_inspect_email(
+    fusion = unified_pipeline.process_input(
+        input_type="email",
+        content=request.content,
+        sender=request.sender,
+        subject=request.subject,
+        raw_headers=request.raw_headers,
+    )
+
+    # Build extracted_urls for the response
+    from detectors.email_detector import parse_and_inspect_email as _parse_email
+    from detectors.url_detector import analyze_url_deterministic as _det
+    from core.normalizer import normalise as _norm
+    email_res = _parse_email(
         raw_content=request.content,
         explicit_sender=request.sender,
         explicit_subject=request.subject,
         raw_headers=request.raw_headers,
     )
-
-    # 2. Text Analysis on Email Body
-    text_analysis = analyze_text_content(
-        content=email_res.extracted_body,
-        channel_type="email",
-        sender=email_res.sender_email,
-        subject=email_res.subject,
-    )
-
-    findings: list[Finding] = list(email_res.findings) + list(text_analysis.findings)
-    highlights: list[TextHighlight] = list(text_analysis.highlights)
-    unavailable: list[str] = list(email_res.unavailable_checks) + list(text_analysis.unavailable_checks)
-
-    # 3. Inspect Embedded URLs
-    extracted_urls: list[ExtractedUrl] = []
-    link_trail: list[LinkHop] = []
-    max_url_score = 0
-
-    for extracted_url in text_analysis.normalisation.extracted_urls:
-        url_res = analyze_url_deterministic(extracted_url, inspect_links=False)
+    body = email_res.extracted_body or request.content
+    norm_result = _norm(body)
+    extracted_urls = []
+    link_trail = []
+    all_u = sorted(set(norm_result.extracted_urls))
+    for u in all_u[:10]:
+        u_res = _det(u, inspect_links=False)
         extracted_urls.append(ExtractedUrl(
-            url=extracted_url,
-            domain=url_res.domain,
-            reputation=url_res.reputation,
-            flags=url_res.flags,
+            url=u, domain=u_res.domain, reputation=u_res.reputation, flags=u_res.flags,
         ))
-        findings.extend(url_res.findings)
-        max_url_score = max(max_url_score, url_res.risk_score)
-        if url_res.link_trail:
-            link_trail.extend(url_res.link_trail)
+        link_trail.extend(u_res.link_trail)
 
-    # Combine scores
-    risk_score = max(email_res.risk_boost, text_analysis.combined_risk_score, max_url_score)
-    risk_level = _score_to_risk_level(risk_score)
-    verdict = _score_to_verdict(risk_score)
-
-    if text_analysis.gemini_analysis.available:
-        explanation = text_analysis.gemini_analysis.explanation
-        recommendations = text_analysis.gemini_analysis.recommendations
-        confidence = text_analysis.gemini_analysis.confidence
-    else:
-        confidence = Confidence.HIGH if findings else Confidence.MEDIUM
-        explanation = (
-            f"Email forensics and body inspection completed ({len(findings)} findings). "
-            + ("Direct sender impersonation, authentication anomaly, or phishing payload identified." if risk_score >= 50 else "No critical email authentication or phishing indicators detected.")
-        )
-        recommendations = [
-            "Check the full email headers and verify sender domain carefully.",
-            "Do not open attachments or click links from unverified senders.",
-        ]
-
-    evidence_hash = _compute_evidence_hash(case_id, "email", request.content, risk_score)
-
-    result = AnalysisResponse(
+    result = _fusion_to_response(
+        fusion,
         case_id=case_id,
-        input_type=InputType.EMAIL,
         created_at=created_at,
-        risk_score=risk_score,
-        risk_level=risk_level,
-        verdict=verdict,
-        confidence=confidence,
-        signal_scores=SignalScores(
-            nlp=text_analysis.combined_risk_score,
-            url=max_url_score,
-            sender=email_res.risk_boost,
-            email_auth=email_res.risk_boost if (email_res.spf_result == "fail" or email_res.dkim_result == "fail") else 0,
-            context=min(100, len(findings) * 15),
-        ),
-        model_scores=ModelScores(
-            url_classifier=round(max_url_score / 100.0, 2),
-            text_classifier=round(text_analysis.combined_risk_score / 100.0, 2),
-            anomaly=0.0,
-        ),
-        findings=findings,
+        input_type=InputType.EMAIL,
+        raw_content=request.content,
         extracted_urls=extracted_urls,
-        link_trail=link_trail,
-        highlights=highlights,
-        unavailable_checks=unavailable,
-        explanation=explanation,
-        recommendations=recommendations,
-        evidence_hash=evidence_hash,
-        blockchain_status=BlockchainStatus.NOT_ENABLED,
-        transaction_hash=None,
-        ai_status=_build_ai_status(text_analysis.gemini_analysis.available),
-        analysis_completeness=AnalysisCompleteness(
-            level="complete" if text_analysis.gemini_analysis.available else "partial",
-            unavailable_checks=unavailable,
-        ),
+        link_trail=[LinkHop(hop=h.hop, url=h.url, status=h.status, final=h.final,
+                            page_title=h.page_title, flags=h.flags) for h in link_trail],
     )
-
     _store_case_in_context(result, auth, response)
     return result
 
@@ -704,6 +516,7 @@ def analyze_file(
     - Safely extracts text, URIs, and scans from .pdf documents.
     - Inspects screenshots (PNG, JPG, WEBP) using Gemini multimodal vision.
     - Correlates with optional user context and extracts embedded URLs into deterministic checks.
+    Delegates to the unified pipeline.
     """
     case_id = _generate_case_id()
     created_at = datetime.now(timezone.utc).isoformat()
@@ -725,251 +538,113 @@ def analyze_file(
     ext = Path(filename).suffix.lower()
     ct = (file.content_type or "").lower()
 
-    findings: list[Finding] = []
-    unavailable: list[str] = []
-    extracted_urls: list[ExtractedUrl] = []
-    input_type = InputType.FILE
-    extracted_text = ""
-    evidence_content = ""
-    file_ai_status: AIStatus = AIStatus()
-    file_completeness: AnalysisCompleteness = AnalysisCompleteness()
-    max_url_score = 0
+    # If filename has no extension but content type is known, synthesize appropriate extension
+    if not ext:
+        if ct == "message/rfc822":
+            filename += ".eml"
+            ext = ".eml"
+        elif ct == "application/pdf":
+            filename += ".pdf"
+            ext = ".pdf"
+        elif ct in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
+            ext = "." + ct.split("/")[-1].replace("jpeg", "jpg")
+            filename += ext
 
-    # Clean optional Form parameters when invoked directly in unit tests
-    safe_sender = sender if isinstance(sender, str) else None
-    safe_subject = subject if isinstance(subject, str) else None
-    safe_context = context if isinstance(context, str) else None
-
-    # 1. EML Email Parsing
-    if ext == ".eml" or ct == "message/rfc822":
-        input_type = InputType.EMAIL
-        eml_res = parse_eml_bytes(file_bytes)
-        findings.extend(eml_res.findings)
-        unavailable.extend(eml_res.unavailable_checks)
-
-        actual_sender = safe_sender or eml_res.sender
-        actual_subject = safe_subject or eml_res.subject
-        combined_text = eml_res.body_text or eml_res.body_html
-        if safe_context:
-            combined_text = f"[User Declared Context]: {safe_context}\n\n{combined_text}"
-
-        extracted_text = combined_text[:2000]
-        evidence_content = f"{actual_sender}|{actual_subject}|{combined_text[:500]}"
-
-        # Brand & text analysis
-        text_res = analyze_text_content(
-            content=combined_text or f"Subject: {actual_subject}",
-            channel_type="email",
-            sender=actual_sender,
-            subject=actual_subject,
-        )
-        findings.extend(text_res.findings)
-        unavailable.extend(text_res.unavailable_checks)
-
-        # Inspect all URLs from eml
-        all_urls = sorted(list(set(eml_res.extracted_urls + text_res.normalisation.extracted_urls)))
-        for u in all_urls[:10]:
-            u_check = analyze_url_deterministic(u, inspect_links=False)
-            extracted_urls.append(ExtractedUrl(
-                url=u,
-                domain=u_check.domain,
-                reputation=u_check.reputation,
-                flags=u_check.flags,
-            ))
-            findings.extend(u_check.findings)
-            max_url_score = max(max_url_score, u_check.risk_score)
-
-        final_risk_score = max(text_res.combined_risk_score, max_url_score)
-        if any(f.severity == FindingSeverity.CRITICAL for f in eml_res.findings):
-            final_risk_score = max(final_risk_score, 85)
-
-        if text_res.gemini_analysis.available:
-            explanation = text_res.gemini_analysis.explanation
-            recommendations = text_res.gemini_analysis.recommendations
-            confidence = text_res.gemini_analysis.confidence
-        else:
-            confidence = Confidence.HIGH if findings else Confidence.MEDIUM
-            explanation = (
-                f"EML forensics completed ({len(findings)} findings). "
-                + ("Critical authentication or payload anomalies detected." if final_risk_score >= 50 else "No critical phishing indicators detected.")
-            )
-            recommendations = [
-                "Verify sender domain against official organisation addresses.",
-                "Do not open attachments or click links from unverified senders.",
-            ]
-
-        file_ai_status = _build_ai_status(text_res.gemini_analysis.available)
-        file_completeness = AnalysisCompleteness(
-            level="complete" if text_res.gemini_analysis.available else "partial",
-            unavailable_checks=sorted(list(set(unavailable))),
-        )
-
-    # 2. PDF Document Forensics
-    elif ext == ".pdf" or ct == "application/pdf":
-        input_type = InputType.FILE
-        pdf_res = parse_pdf_bytes(file_bytes)
-        findings.extend(pdf_res.findings)
-        unavailable.extend(pdf_res.unavailable_checks)
-
-        body_text = pdf_res.extracted_text
-        if safe_context:
-            body_text = f"[User Context]: {safe_context}\n\n{body_text}"
-        extracted_text = body_text[:2000]
-        evidence_content = f"PDF:{filename}|{body_text[:500]}"
-
-        text_res = analyze_text_content(
-            content=body_text or f"PDF File: {filename}",
-            channel_type="file",
-            sender=safe_sender,
-            subject=safe_subject or pdf_res.title,
-        )
-        findings.extend(text_res.findings)
-        unavailable.extend(text_res.unavailable_checks)
-
-        all_urls = sorted(list(set(pdf_res.extracted_urls + text_res.normalisation.extracted_urls)))
-        for u in all_urls[:10]:
-            u_check = analyze_url_deterministic(u, inspect_links=False)
-            extracted_urls.append(ExtractedUrl(
-                url=u,
-                domain=u_check.domain,
-                reputation=u_check.reputation,
-                flags=u_check.flags,
-            ))
-            findings.extend(u_check.findings)
-            max_url_score = max(max_url_score, u_check.risk_score)
-
-        final_risk_score = max(text_res.combined_risk_score, max_url_score)
-
-        if text_res.gemini_analysis.available:
-            explanation = text_res.gemini_analysis.explanation
-            recommendations = text_res.gemini_analysis.recommendations
-            confidence = text_res.gemini_analysis.confidence
-        else:
-            confidence = Confidence.HIGH if findings else Confidence.MEDIUM
-            explanation = (
-                f"PDF document analysis completed ({len(findings)} findings). "
-                + ("Suspicious content or embedded links detected." if final_risk_score >= 25 else "No immediate phishing indicators found in PDF text.")
-            )
-            recommendations = [
-                "Do not click embedded links or download files from untrusted PDF documents.",
-                "Verify the PDF source before opening attachments.",
-            ]
-
-        # Check if PDF was scanned (no extractable text) — marks as partial/inconclusive
-        if not body_text.strip():
-            unavailable.append("Scanned PDF: No machine-readable text extracted. OCR unavailable.")
-            pdf_completeness_level = "inconclusive"
-        elif text_res.gemini_analysis.available:
-            pdf_completeness_level = "complete"
-        else:
-            pdf_completeness_level = "partial"
-
-        file_ai_status = _build_ai_status(text_res.gemini_analysis.available)
-        file_completeness = AnalysisCompleteness(
-            level=pdf_completeness_level,
-            unavailable_checks=sorted(list(set(unavailable))),
-        )
-
-    # 3. Screenshot Vision Intelligence
-    elif ext in (".png", ".jpg", ".jpeg", ".webp") or ct.startswith("image/"):
-        input_type = InputType.SCREENSHOT
-        screen_res = analyze_screenshot(file_bytes, user_context=safe_context)
-        findings.extend(screen_res.findings)
-        unavailable.extend(screen_res.unavailable_checks)
-
-        extracted_text = screen_res.extracted_text
-        evidence_content = f"SCREENSHOT:{filename}|{extracted_text[:500]}"
-
-        for u in screen_res.extracted_urls:
-            u_check = analyze_url_deterministic(u, inspect_links=False)
-            extracted_urls.append(ExtractedUrl(
-                url=u,
-                domain=u_check.domain,
-                reputation=u_check.reputation,
-                flags=u_check.flags,
-            ))
-            findings.extend(u_check.findings)
-            max_url_score = max(max_url_score, u_check.risk_score)
-
-        if screen_res.available:
-            # Gemini vision succeeded
-            final_risk_score = max(screen_res.risk_score, max_url_score)
-            explanation = screen_res.explanation
-            recommendations = screen_res.recommendations
-            confidence = screen_res.confidence
-            file_ai_status = _build_ai_status(True)
-            file_completeness = AnalysisCompleteness(
-                level="complete",
-                unavailable_checks=sorted(list(set(unavailable))),
-            )
-        else:
-            # No Gemini — screenshot analysis is inconclusive
-            final_risk_score = max_url_score  # only score if URLs found
-            explanation = screen_res.explanation
-            recommendations = screen_res.recommendations
-            confidence = Confidence.LOW
-            file_ai_status = AIStatus(
-                provider="gemini",
-                mode="python_fallback",
-                available=False,
-                model=settings.gemini_model,
-                message="Screenshot submitted but visual content analysis requires Gemini Vision API. No verdict can be determined from image metadata alone.",
-            )
-            file_completeness = AnalysisCompleteness(
-                level="inconclusive" if not max_url_score else "partial",
-                unavailable_checks=sorted(list(set(unavailable))),
-            )
-            # Override verdict to SAFE/inconclusive unless URLs were found
-            if not max_url_score:
-                screen_res.risk_score = 0
-                final_risk_score = 0
-
-    else:
+    if ext not in (".eml", ".pdf", ".png", ".jpg", ".jpeg", ".webp") and ct != "message/rfc822" and not ct.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file format. Supported formats: .eml, .pdf, .png, .jpg, .jpeg, .webp",
         )
 
-    risk_level = _score_to_risk_level(final_risk_score)
-    verdict = _score_to_verdict(final_risk_score)
-    evidence_hash = _compute_evidence_hash(case_id, str(input_type.value), evidence_content, final_risk_score)
+    safe_sender = sender if isinstance(sender, str) else None
+    safe_subject = subject if isinstance(subject, str) else None
+    safe_context = context if isinstance(context, str) else None
 
-    result = AnalysisResponse(
-        case_id=case_id,
-        input_type=input_type,
-        created_at=created_at,
-        risk_score=final_risk_score,
-        risk_level=risk_level,
-        verdict=verdict,
-        confidence=confidence,
-        signal_scores=SignalScores(
-            nlp=final_risk_score,
-            url=max_url_score,
-            sender=0,
-            email_auth=0,
-            context=20,
-        ),
-        model_scores=ModelScores(
-            url_classifier=round(max_url_score / 100.0, 2),
-            text_classifier=round(final_risk_score / 100.0, 2),
-            anomaly=0.0,
-        ),
-        findings=findings,
-        extracted_urls=extracted_urls,
-        link_trail=[],
-        highlights=[],
-        unavailable_checks=sorted(list(set(unavailable))),
-        explanation=explanation,
-        recommendations=recommendations,
-        evidence_hash=evidence_hash,
-        blockchain_status=BlockchainStatus.NOT_ENABLED,
-        transaction_hash=None,
-        file_name=filename,
-        extracted_text=extracted_text,
-        ai_status=file_ai_status,
-        analysis_completeness=file_completeness,
+    # Determine input type
+    if ext == ".eml" or ct == "message/rfc822":
+        resp_input_type = InputType.EMAIL
+        pipe_input_type = "file"
+    elif ext in (".png", ".jpg", ".jpeg", ".webp") or ct.startswith("image/"):
+        resp_input_type = InputType.SCREENSHOT
+        pipe_input_type = "screenshot"
+    else:
+        resp_input_type = InputType.FILE
+        pipe_input_type = "file"
+
+    fusion = unified_pipeline.process_input(
+        input_type=pipe_input_type,
+        file_bytes=file_bytes,
+        filename=filename,
+        sender=safe_sender,
+        subject=safe_subject,
+        context=safe_context,
     )
 
+    # Reconstruct extracted URLs and extracted text for frontend/response contract
+    extracted_urls: list[ExtractedUrl] = []
+    extracted_text: str = ""
+    from detectors.url_detector import analyze_url_deterministic as _det
+
+    if resp_input_type == InputType.EMAIL:
+        from detectors.file_forensics import parse_eml_bytes as _parse_eml
+        from core.normalizer import normalise as _norm
+        eml_res = _parse_eml(file_bytes)
+        combined_text = eml_res.body_text or eml_res.body_html
+        if safe_context:
+            combined_text = f"[User Declared Context]: {safe_context}\n\n{combined_text}"
+        extracted_text = combined_text[:2000]
+        norm_res = _norm(combined_text)
+        all_urls = sorted(set(eml_res.extracted_urls + norm_res.extracted_urls))
+        for u in all_urls[:10]:
+            u_check = _det(u, inspect_links=False)
+            extracted_urls.append(ExtractedUrl(
+                url=u,
+                domain=u_check.domain,
+                reputation=u_check.reputation,
+                flags=u_check.flags,
+            ))
+    elif ext == ".pdf":
+        from detectors.file_forensics import parse_pdf_bytes as _parse_pdf
+        from core.normalizer import normalise as _norm
+        pdf_res = _parse_pdf(file_bytes)
+        body_text = pdf_res.extracted_text
+        if safe_context:
+            body_text = f"[User Context]: {safe_context}\n\n{body_text}"
+        extracted_text = body_text[:2000]
+        norm_res = _norm(body_text)
+        all_urls = sorted(set(pdf_res.extracted_urls + norm_res.extracted_urls))
+        for u in all_urls[:10]:
+            u_check = _det(u, inspect_links=False)
+            extracted_urls.append(ExtractedUrl(
+                url=u,
+                domain=u_check.domain,
+                reputation=u_check.reputation,
+                flags=u_check.flags,
+            ))
+    elif resp_input_type == InputType.SCREENSHOT:
+        from detectors.screenshot_detector import analyze_screenshot as _screen_det
+        screen_res = _screen_det(file_bytes, user_context=safe_context)
+        extracted_text = screen_res.extracted_text
+        for u in screen_res.extracted_urls:
+            u_check = _det(u, inspect_links=False)
+            extracted_urls.append(ExtractedUrl(
+                url=u,
+                domain=u_check.domain,
+                reputation=u_check.reputation,
+                flags=u_check.flags,
+            ))
+
+    evidence_content = f"{filename}|{extracted_text[:500]}"
+    result = _fusion_to_response(
+        fusion,
+        case_id=case_id,
+        created_at=created_at,
+        input_type=resp_input_type,
+        raw_content=evidence_content,
+        extracted_urls=extracted_urls,
+        file_name=filename,
+        extracted_text=extracted_text,
+    )
     _store_case_in_context(result, auth, response)
     return result
 

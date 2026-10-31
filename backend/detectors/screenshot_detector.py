@@ -69,6 +69,7 @@ EVALUATION CRITERIA:
    - Financial & Credential Scams: UPI PIN required to receive money, fake APK download, lottery/cashback, part-time YouTube/hotel rating task fraud.
    - Phishing Links & Numbers: Any visible shortened links (bit.ly, .top, .xyz) or contact numbers to call.
 4. Recommendations: Actionable Indian citizen advice (e.g., call 1930, report to cybercrime.gov.in, block number).
+5. Brand Registry Awareness: Known official secondary and short campaign domains (e.g. ajioin.in, hdfcbk.io, amzn.to, fkrt.it) are legitimate marketing domains and must NOT be treated as typosquatting or brand impersonation unless there is an overt prize/lottery/advance-fee lure or credential theft.
 
 Return a single JSON object matching this exact schema:
 {

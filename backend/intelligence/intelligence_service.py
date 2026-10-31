@@ -33,6 +33,11 @@ from .loaders.message_loader import message_loader, MessagePattern
 from .loaders.threat_feed_loader import lookup_domain as threat_lookup, ThreatRecord
 from .sources.tranco_provider import tranco_provider
 
+try:
+    from .sources.domainrel_provider import domainrel_provider
+except ImportError:
+    domainrel_provider = None
+
 
 class DomainReputationLevel(str, Enum):
     VERIFIED_LEGITIMATE = "verified_legitimate"
@@ -224,6 +229,20 @@ class IntelligenceService:
             )
             for score, pattern in matches
         ]
+
+    def lookup_domain_credibility(self, domain: str) -> Optional[float]:
+        """
+        Return the DomainRel credibility score for a domain (0.0–1.0), or None.
+
+        IMPORTANT:
+          - Low score NEVER independently triggers MALICIOUS verdict.
+          - High score NEVER whitelists or bypasses URL security checks.
+          - Missing record = UNKNOWN (not SAFE).
+          - Measures journalistic/misinformation credibility, NOT phishing risk.
+        """
+        if domainrel_provider is None:
+            return None
+        return domainrel_provider.get_credibility_score(domain)
 
     def lookup_scam_message_patterns(self, text: str) -> list[PatternMatch]:
         """Find scam message patterns similar to text.
