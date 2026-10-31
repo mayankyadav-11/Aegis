@@ -35,13 +35,9 @@ export function Navbar() {
       label: 'Analyse',
       href: '/analyze',
       isActive:
-        pathname.startsWith('/analyze') || pathname.startsWith('/results'),
-    },
-    {
-      label: 'History',
-      href: '/history',
-      isActive:
-        pathname.startsWith('/history') || pathname.startsWith('/verify'),
+        pathname.startsWith('/analyze') ||
+        pathname.startsWith('/results') ||
+        pathname.startsWith('/verify'),
     },
     {
       label: 'Red-Team',
@@ -171,11 +167,11 @@ export function Navbar() {
   if (!isLanding) {
     return (
       <header className="relative z-20 w-full pt-7 md:pt-9 px-5 md:px-10">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Brand: Shield Mark + AEGIS (Links to '/') */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-[#E6E6EA] group transition-opacity hover:opacity-90"
+            className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-[#E6E6EA] group transition-opacity hover:opacity-90 justify-self-start"
           >
             <div className="relative flex items-center justify-center w-7 h-7 rounded-md bg-[#0D0D12] border border-[#1C1C26] shadow-inner group-hover:border-[#7B3FE4]/50 transition-colors">
               <svg
@@ -196,7 +192,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Nav Tabs with active indicator */}
+          {/* Nav Tabs with active indicator — centred */}
           <nav className="flex items-center gap-5 sm:gap-7 lg:gap-9 font-body text-[14px] font-medium text-[#9A9AAE]">
             {appNavLinks.map((link) => (
               <Link
@@ -213,30 +209,8 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* Action Pill */}
-          <div className="hidden sm:flex items-center">
-            <Link
-              href="/analyze"
-              className="group relative inline-flex items-center justify-center px-4 md:px-5 py-2 md:py-2.5 font-body text-[13.5px] font-medium text-[#E6E6EA] bg-[#0D0D12] hover:bg-[#13131A] border border-[#1C1C26] hover:border-[#7B3FE4]/60 rounded-full transition-all duration-200 hover:-translate-y-0.5 shadow-sm active:translate-y-0"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <span>Analyse</span>
-                <svg
-                  className="w-3.5 h-3.5 text-[#00E5FF] transition-transform group-hover:translate-x-0.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-              </span>
-            </Link>
-          </div>
+          {/* Right slot — empty, keeps nav centred */}
+          <div className="justify-self-end" />
         </div>
       </header>
     );
