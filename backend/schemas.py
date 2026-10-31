@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -25,6 +25,8 @@ class InputType(str, enum.Enum):
     URL = "url"
     MESSAGE = "message"
     TEXT = "text"
+    FILE = "file"
+    SCREENSHOT = "screenshot"
 
 
 class RiskLevel(str, enum.Enum):
@@ -132,6 +134,21 @@ class TextHighlight(BaseModel):
     label: str
 
 
+class AIStatus(BaseModel):
+    """AI engine availability and current operating mode."""
+    provider: str = "gemini"
+    mode: Literal["full_ai", "python_fallback"] = "python_fallback"
+    available: bool = False
+    model: Optional[str] = None
+    message: str = ""
+
+
+class AnalysisCompleteness(BaseModel):
+    """How complete the analysis is given available engine capabilities."""
+    level: Literal["complete", "partial", "inconclusive"] = "partial"
+    unavailable_checks: list[str] = Field(default_factory=list)
+
+
 # ---------------------------------------------------------------------------
 # Request Models
 # ---------------------------------------------------------------------------
@@ -223,4 +240,27 @@ class AnalysisResponse(BaseModel):
     evidence_hash: Optional[str] = None
     blockchain_status: BlockchainStatus = BlockchainStatus.NOT_ENABLED
     transaction_hash: Optional[str] = None
+    file_name: Optional[str] = None
+    extracted_text: Optional[str] = None
+    ai_status: AIStatus = Field(default_factory=AIStatus)
+    analysis_completeness: AnalysisCompleteness = Field(default_factory=AnalysisCompleteness)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    token: str
+    user: dict
+
+
+class EvidenceVerifyResponse(BaseModel):
+    case_id: str
+    verified: bool
+    computed_hash: str
+    recorded_hash: str
+    message: str
+
 

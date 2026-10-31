@@ -1,6 +1,9 @@
 import {
   AnalysisResult,
   AnalyzeRequest,
+  AuthStatus,
+  CaseListResponse,
+  EvidenceVerifyResult,
   MetricsResult,
   RedTeamResult,
   SystemHealth,
@@ -272,6 +275,49 @@ const SESSION_CASES: Map<string, AnalysisResult> = new Map();
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
 
+const TOKEN_STORAGE_KEY = 'aegis_auth_token';
+const SESSION_STORAGE_KEY = 'aegis_session_id';
+
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function setStoredToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+}
+
+export function getStoredSessionId(): string {
+  if (typeof window === 'undefined') return 'ses_client_init';
+  let sid = sessionStorage.getItem(SESSION_STORAGE_KEY);
+  if (!sid) {
+    sid = 'ses_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, sid);
+  }
+  return sid;
+}
+
+export function setStoredSessionId(sid: string) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(SESSION_STORAGE_KEY, sid);
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-Session-ID': getStoredSessionId(),
+  };
+  const token = getStoredToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 /**
  * Check backend API health and detector readiness.
  */
@@ -359,18 +405,27 @@ export async function analyze(data: AnalyzeRequest): Promise<AnalysisResult> {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for LLM
+    const timeout = setTimeout(() => controller.abort(), 35000);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    };
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers,
       body: JSON.stringify(bodyPayload),
       signal: controller.signal,
     });
     clearTimeout(timeout);
+
+    // Sync session ID if returned by server
+    const serverSessionId = response.headers.get('X-Session-ID');
+    if (serverSessionId) {
+      setStoredSessionId(serverSessionId);
+    }
 
     if (!response.ok) {
       let errorDetail = `Backend error (${response.status})`;
@@ -384,35 +439,268 @@ export async function analyze(data: AnalyzeRequest): Promise<AnalysisResult> {
           }
         }
       } catch {
-        // Fall back to default status string
+        // Fall back
       }
       throw new Error(errorDetail);
     }
 
     const result: AnalysisResult = await response.json();
 
-    // Cache the result in memory for results page lookup
     if (result && result.case_id) {
       SESSION_CASES.set(result.case_id.toLowerCase(), result);
     }
 
     return result;
   } catch (err: unknown) {
-    // If it's a TypeError from fetch (Network Failed / Connection Refused)
     if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
       throw new Error(
         `AEGIS backend unreachable at ${API_BASE_URL}. Ensure FastAPI is running on port 8000.`
       );
     }
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Analysis timed out after 30 seconds.');
+      throw new Error('Analysis timed out after 35 seconds.');
     }
     throw err;
   }
 }
 
+/**
+ * Upload and analyze file payload (.eml, .pdf, or screenshot image).
+ */
+export async function analyzeFile(formData: FormData): Promise<AnalysisResult> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
+    const headers = {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/analyze/file`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    const serverSessionId = response.headers.get('X-Session-ID');
+    if (serverSessionId) {
+      setStoredSessionId(serverSessionId);
+    }
+
+    if (!response.ok) {
+      let errorDetail = `Upload analysis failed (${response.status})`;
+      try {
+        const errJson = await response.json();
+        if (errJson.detail) {
+          errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+        }
+      } catch {
+        // Fall back
+      }
+      throw new Error(errorDetail);
+    }
+
+    const result: AnalysisResult = await response.json();
+    if (result && result.case_id) {
+      SESSION_CASES.set(result.case_id.toLowerCase(), result);
+    }
+    return result;
+  } catch (err: unknown) {
+    if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+      throw new Error(`AEGIS backend unreachable at ${API_BASE_URL}.`);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Enterprise Authentication APIs
+ */
+export async function enterpriseLogin(email: string, password: string) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Login failed.');
+  }
+  const data = await res.json();
+  setStoredToken(data.token);
+  return data;
+}
+
+export async function enterpriseLogout() {
+  setStoredToken(null);
+  await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', ...getAuthHeaders() },
+  }).catch(() => {});
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  const token = getStoredToken();
+  if (!token) {
+    return {
+      authenticated: false,
+      mode: 'session',
+      session_id: getStoredSessionId(),
+    };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', ...getAuthHeaders() },
+    });
+    if (!res.ok) {
+      setStoredToken(null);
+      return {
+        authenticated: false,
+        mode: 'session',
+        session_id: getStoredSessionId(),
+      };
+    }
+    const data = await res.json();
+    return {
+      authenticated: data.authenticated,
+      mode: data.mode,
+      user: data.authenticated
+        ? {
+            id: data.user_id,
+            org_id: data.org_id,
+            org_name: data.org_name,
+            email: data.email,
+            role: data.role,
+          }
+        : undefined,
+      session_id: data.session_id || getStoredSessionId(),
+    };
+  } catch {
+    return {
+      authenticated: false,
+      mode: 'session',
+      session_id: getStoredSessionId(),
+    };
+  }
+}
+
+/**
+ * Dual-Mode Case Listing (Enterprise persistent or Session ephemeral)
+ */
+export async function listCases(params?: {
+  query?: string;
+  input_type?: string;
+  verdict?: string;
+  risk_level?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<CaseListResponse> {
+  const token = getStoredToken();
+  const isEnterprise = Boolean(token);
+  const endpoint = isEnterprise ? '/api/cases' : '/api/session/cases';
+
+  const queryParams = new URLSearchParams();
+  if (params?.query) queryParams.set('query', params.query);
+  if (params?.input_type) queryParams.set('input_type', params.input_type);
+  if (params?.verdict) queryParams.set('verdict', params.verdict);
+  if (params?.risk_level) queryParams.set('risk_level', params.risk_level);
+  if (params?.limit) queryParams.set('limit', String(params.limit));
+  if (params?.offset) queryParams.set('offset', String(params.offset));
+
+  const url = `${API_BASE_URL}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json', ...getAuthHeaders() },
+    });
+
+    if (!res.ok) {
+      if (res.status === 401 && isEnterprise) {
+        setStoredToken(null);
+      }
+      throw new Error(`Failed to list cases (${res.status})`);
+    }
+
+    const data: CaseListResponse = await res.json();
+    return data;
+  } catch {
+    // Fall back to in-memory session cases
+    const sessionList = Array.from(SESSION_CASES.values());
+    return {
+      total: sessionList.length,
+      cases: sessionList,
+      limit: 50,
+      offset: 0,
+      mode: isEnterprise ? 'enterprise' : 'session',
+    };
+  }
+}
+
+export async function clearSession(): Promise<void> {
+  SESSION_CASES.clear();
+  try {
+    await fetch(`${API_BASE_URL}/api/session`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json', ...getAuthHeaders() },
+    });
+  } catch {
+    // Ignore offline errors
+  }
+}
+
+/**
+ * Download PDF Forensic Report
+ */
+export async function downloadReport(caseId: string, isEnterprise = false): Promise<void> {
+  const endpoint = isEnterprise ? `/api/cases/${caseId}/report` : `/api/session/cases/${caseId}/report`;
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Could not generate PDF report (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = `AEGIS-Forensic-Report-${caseId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+/**
+ * Verify Digital Evidence SHA-256 Digest
+ */
+export async function verifyCaseEvidence(caseId: string, isEnterprise = false): Promise<EvidenceVerifyResult> {
+  const endpoint = isEnterprise ? `/api/cases/${caseId}/verify` : `/api/session/cases/${caseId}/verify`;
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', ...getAuthHeaders() },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Evidence verification failed (${res.status})`);
+  }
+
+  return await res.json();
+}
+
 export async function getCases(): Promise<AnalysisResult[]> {
-  // Return all session cases combined with mock cases for review
+  const list = await listCases();
+  if (list && list.cases.length > 0) {
+    return list.cases;
+  }
   const sessionList = Array.from(SESSION_CASES.values());
   const seenIds = new Set(sessionList.map((c) => c.case_id.toLowerCase()));
   const mocks = MOCK_CASES.filter((c) => !seenIds.has(c.case_id.toLowerCase()));
@@ -424,9 +712,27 @@ export async function getCase(id: string): Promise<AnalysisResult | null> {
   if (SESSION_CASES.has(normalizedId)) {
     return SESSION_CASES.get(normalizedId)!;
   }
+
+  // Try fetching from API
+  try {
+    const token = getStoredToken();
+    const endpoint = token ? `/api/cases/${id}` : `/api/session/cases/${id}`;
+    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', ...getAuthHeaders() },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch {
+    // Fall back to mock
+  }
+
   const found = MOCK_CASES.find((c) => c.case_id.toLowerCase() === normalizedId);
   return found || null;
 }
+
 
 export async function runRedTeam(): Promise<RedTeamResult> {
   await new Promise((resolve) => setTimeout(resolve, 800));

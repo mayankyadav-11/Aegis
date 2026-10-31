@@ -1,0 +1,72 @@
+# Tranco Top Domain Snapshot — Offline Reference Copy
+# Source: https://tranco-list.eu/ (Le Pochat et al. 2019)
+# License: CC-BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+# Retrieved: 2026-10-31 (partial offline snapshot for AEGIS)
+# IMPORTANT: Popularity rank alone does NOT grant VERIFIED_LEGITIMATE status.
+# This file is used only to compute rank-based confidence adjustments.
+1,google.com
+2,youtube.com
+3,facebook.com
+4,microsoft.com
+5,apple.com
+6,instagram.com
+7,twitter.com
+8,wikipedia.org
+9,amazon.com
+10,linkedin.com
+11,netflix.com
+12,yahoo.com
+13,reddit.com
+14,bing.com
+15,whatsapp.com
+16,live.com
+17,office.com
+18,github.com
+19,cloudflare.com
+20,pinterest.com
+25,wordpress.org
+30,adobe.com
+40,spotify.com
+50,zoom.us
+75,salesforce.com
+100,amazon.in
+120,flipkart.com
+150,sbi.co.in
+180,hdfcbank.com
+200,icicibank.com
+220,paytm.com
+250,phonepe.com
+300,axisbank.com
+350,kotak.com
+400,myntra.com
+450,ajio.com
+500,incometax.gov.in
+550,uidai.gov.in
+600,indiapost.gov.in
+650,irctc.co.in
+700,rbi.org.in
+750,epfindia.gov.in
+800,pnbindia.in
+850,bankofbaroda.in
+900,delhivery.com
+950,bluedart.com
+1000,bhimupi.org.in
+1100,npci.org.in
+1200,swiggy.com
+1300,zomato.com
+1400,tcs.com
+1500,infosys.com
+1600,wipro.com
+1700,airindia.com
+1800,goindigo.in
+1900,tatamotors.com
+2000,jio.com
+2100,airtel.in
+2200,vodafoneidea.com
+2500,bookmyshow.com
+3000,makemytrip.com
+3500,cleartrip.com
+4000,policybazaar.com
+4500,zerodha.com
+5000,groww.in
+

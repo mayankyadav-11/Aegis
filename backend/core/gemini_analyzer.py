@@ -8,13 +8,16 @@ Executes one consolidated LLM request per message analysis:
 - Produces plain-language explanation, actionable Indian recommendations (1930 helpline, DND),
   and character-offset highlights for suspicious phrases.
 - Features automatic graceful fallback when GEMINI_API_KEY is not set or network fails.
+- Tracks provider availability and failure categories via GeminiProviderStatus singleton.
 """
 
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Literal, Optional
 
 import httpx
 
@@ -30,6 +33,100 @@ from schemas import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Failure category literals
+# ---------------------------------------------------------------------------
+
+FailureCategory = Literal[
+    "not_configured",
+    "authentication_failure",
+    "quota_or_rate_limit",
+    "provider_error",
+    "network_unavailable",
+    "request_timeout",
+    "invalid_response",
+    "empty_response",
+    "safety_blocked",
+]
+
+
+# ---------------------------------------------------------------------------
+# GeminiProviderStatus — thread-safe singleton
+# ---------------------------------------------------------------------------
+
+class _GeminiProviderStatus:
+    """
+    Thread-safe singleton tracking Gemini API availability across requests.
+
+    Never stores or exposes the API key itself.
+    """
+
+    _instance: Optional["_GeminiProviderStatus"] = None
+    _lock: threading.Lock = threading.Lock()
+
+    def __new__(cls) -> "_GeminiProviderStatus":
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    instance._init()
+                    cls._instance = instance
+        return cls._instance
+
+    def _init(self) -> None:
+        self._state_lock = threading.Lock()
+        self.is_available: bool = False
+        self.last_success_at: Optional[datetime] = None
+        self.last_failure_at: Optional[datetime] = None
+        self.last_failure_reason: Optional[str] = None  # category only, never key
+        self.failure_count: int = 0
+        self.success_count: int = 0
+
+    @property
+    def current_mode(self) -> str:
+        return "full_ai" if self.is_available else "python_fallback"
+
+    def record_success(self) -> None:
+        with self._state_lock:
+            self.is_available = True
+            self.last_success_at = datetime.now(timezone.utc)
+            self.success_count += 1
+
+    def record_failure(self, category: str) -> None:
+        with self._state_lock:
+            self.is_available = False
+            self.last_failure_at = datetime.now(timezone.utc)
+            self.last_failure_reason = category
+            self.failure_count += 1
+
+    def get_status(self) -> dict:
+        with self._state_lock:
+            return {
+                "provider": "gemini",
+                "mode": self.current_mode,
+                "available": self.is_available,
+                "model": settings.gemini_model,
+                "last_success_at": self.last_success_at.isoformat() if self.last_success_at else None,
+                "last_failure_at": self.last_failure_at.isoformat() if self.last_failure_at else None,
+                "last_failure_reason": self.last_failure_reason,
+                "success_count": self.success_count,
+                "failure_count": self.failure_count,
+            }
+
+
+# Module-level singleton instance
+_provider_status = _GeminiProviderStatus()
+
+
+def get_gemini_provider_status() -> dict:
+    """Return a safe snapshot of Gemini provider status (no secrets)."""
+    return _provider_status.get_status()
+
+
+# ---------------------------------------------------------------------------
+# GeminiAnalysisResult dataclass
+# ---------------------------------------------------------------------------
+
 @dataclass
 class GeminiAnalysisResult:
     available: bool
@@ -42,7 +139,12 @@ class GeminiAnalysisResult:
     findings: list[Finding] = field(default_factory=list)
     highlights: list[TextHighlight] = field(default_factory=list)
     error: Optional[str] = None
+    failure_category: Optional[str] = None
 
+
+# ---------------------------------------------------------------------------
+# System Prompt
+# ---------------------------------------------------------------------------
 
 GEMINI_SYSTEM_PROMPT = """You are the AEGIS AI Security Threat Engine, specializing in phishing and scam detection across Email, SMS, WhatsApp, and URLs.
 
@@ -85,6 +187,24 @@ Return a single JSON object matching this exact schema:
 """
 
 
+# ---------------------------------------------------------------------------
+# Failure category classifier (HTTP status codes)
+# ---------------------------------------------------------------------------
+
+def _classify_http_failure(status_code: int) -> str:
+    if status_code in (401, 403):
+        return "authentication_failure"
+    if status_code == 429:
+        return "quota_or_rate_limit"
+    if status_code >= 500:
+        return "provider_error"
+    return "provider_error"
+
+
+# ---------------------------------------------------------------------------
+# Main analysis function
+# ---------------------------------------------------------------------------
+
 def analyze_with_gemini(
     content: str,
     channel_type: str = "text",
@@ -94,13 +214,17 @@ def analyze_with_gemini(
 ) -> GeminiAnalysisResult:
     """
     Execute a single consolidated Gemini request for contextual threat analysis.
+
     Gracefully falls back if API key is not configured or an error occurs.
+    Records all successes and failures in the GeminiProviderStatus singleton.
     """
     api_key = settings.gemini_api_key.strip()
     if not api_key:
+        _provider_status.record_failure("not_configured")
         return GeminiAnalysisResult(
             available=False,
             error="GEMINI_API_KEY is not configured. Operating in deterministic rule-based mode.",
+            failure_category="not_configured",
         )
 
     # Prepare payload with untrusted user data clearly demarcated
@@ -144,10 +268,14 @@ Perform consolidated security threat evaluation. Respond strictly in valid JSON.
     try:
         with httpx.Client(timeout=settings.gemini_timeout_seconds) as client:
             response = client.post(url, json=body)
+
             if response.status_code != 200:
+                category = _classify_http_failure(response.status_code)
+                _provider_status.record_failure(category)
                 return GeminiAnalysisResult(
                     available=False,
                     error=f"Gemini API returned HTTP {response.status_code}: {response.text[:120]}",
+                    failure_category=category,
                 )
 
             data = response.json()
@@ -156,39 +284,49 @@ Perform consolidated security threat evaluation. Respond strictly in valid JSON.
             prompt_feedback = data.get("promptFeedback") or {}
             block_reason = prompt_feedback.get("blockReason")
             if block_reason:
+                _provider_status.record_failure("safety_blocked")
                 return GeminiAnalysisResult(
                     available=False,
                     error=f"Gemini prompt blocked by safety filter: {block_reason}",
+                    failure_category="safety_blocked",
                 )
 
             candidates = data.get("candidates") or []
             if not candidates:
+                _provider_status.record_failure("empty_response")
                 return GeminiAnalysisResult(
                     available=False,
                     error="Gemini returned no response candidates.",
+                    failure_category="empty_response",
                 )
 
             first_candidate = candidates[0]
             finish_reason = first_candidate.get("finishReason")
             if finish_reason in ("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT"):
+                _provider_status.record_failure("safety_blocked")
                 return GeminiAnalysisResult(
                     available=False,
                     error=f"Gemini response blocked by safety filter: finishReason={finish_reason}",
+                    failure_category="safety_blocked",
                 )
 
             candidate_content = first_candidate.get("content") or {}
             parts = candidate_content.get("parts") or []
             if not parts:
+                _provider_status.record_failure("empty_response")
                 return GeminiAnalysisResult(
                     available=False,
                     error=f"Gemini response contained no content parts (finishReason={finish_reason or 'UNKNOWN'}).",
+                    failure_category="empty_response",
                 )
 
             text_response = (parts[0].get("text") or "").strip()
             if not text_response:
+                _provider_status.record_failure("empty_response")
                 return GeminiAnalysisResult(
                     available=False,
                     error="Gemini response part contained empty text.",
+                    failure_category="empty_response",
                 )
 
             parsed_json = json.loads(text_response)
@@ -252,6 +390,7 @@ Perform consolidated security threat evaluation. Respond strictly in valid JSON.
             except ValueError:
                 confidence = Confidence.HIGH
 
+            _provider_status.record_success()
             return GeminiAnalysisResult(
                 available=True,
                 risk_score=int(parsed_json.get("risk_score", 0)),
@@ -265,18 +404,23 @@ Perform consolidated security threat evaluation. Respond strictly in valid JSON.
             )
 
     except httpx.TimeoutException:
+        _provider_status.record_failure("request_timeout")
         return GeminiAnalysisResult(
             available=False,
             error="Gemini API request timed out. Reverted to deterministic evaluation.",
+            failure_category="request_timeout",
         )
     except json.JSONDecodeError as e:
+        _provider_status.record_failure("invalid_response")
         return GeminiAnalysisResult(
             available=False,
             error=f"Gemini API returned malformed JSON: {str(e)}",
+            failure_category="invalid_response",
         )
     except Exception as e:
+        _provider_status.record_failure("network_unavailable")
         return GeminiAnalysisResult(
             available=False,
             error=f"Gemini API request failed: {str(e)}",
+            failure_category="network_unavailable",
         )
-

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     max_response_bytes: int = 250_000  # 250 KB max landing page read
 
     model_config = {
-        "env_file": ".env",
+        "env_file": Path(__file__).resolve().parent / ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }

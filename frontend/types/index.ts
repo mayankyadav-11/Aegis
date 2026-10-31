@@ -1,4 +1,4 @@
-export type InputType = 'email' | 'sms' | 'url' | 'message' | 'text';
+export type InputType = 'email' | 'sms' | 'url' | 'message' | 'text' | 'file' | 'screenshot';
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -52,6 +52,22 @@ export interface TextHighlight {
 
 export type BlockchainStatus = 'not_enabled' | 'pending' | 'anchored' | 'failed';
 
+export type AIMode = 'full_ai' | 'python_fallback';
+export type CompletenessLevel = 'complete' | 'partial' | 'inconclusive';
+
+export interface AIStatus {
+  provider: string;
+  mode: AIMode;
+  available: boolean;
+  model: string | null;
+  message: string;
+}
+
+export interface AnalysisCompleteness {
+  level: CompletenessLevel;
+  unavailable_checks: string[];
+}
+
 export interface SignalScores {
   nlp: number;
   url: number;
@@ -86,7 +102,45 @@ export interface AnalysisResult {
   evidence_hash: string | null;
   blockchain_status: BlockchainStatus;
   transaction_hash: string | null;
+  file_name?: string | null;
+  extracted_text?: string | null;
+  ai_status?: AIStatus;
+  analysis_completeness?: AnalysisCompleteness;
 }
+
+export interface EnterpriseUser {
+  id: string;
+  org_id: string;
+  org_name: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthStatus {
+  authenticated: boolean;
+  mode: 'session' | 'enterprise';
+  session_id?: string;
+  user?: EnterpriseUser;
+}
+
+export interface CaseListResponse {
+  total: number;
+  cases: AnalysisResult[];
+  limit: number;
+  offset: number;
+  mode?: string;
+  session_id?: string;
+  note?: string;
+}
+
+export interface EvidenceVerifyResult {
+  case_id: string;
+  verified: boolean;
+  computed_hash: string;
+  recorded_hash: string;
+  message: string;
+}
+
 
 export interface AnalyzeRequest {
   type: InputType;
@@ -136,6 +190,12 @@ export interface SystemHealth {
     model: string;
     configured: boolean;
     status: string;
+    available: boolean;
+    last_success_at: string | null;
+    last_failure_at: string | null;
+    last_failure_reason: string | null;
+    success_count: number;
+    failure_count: number;
   };
   detectors?: {
     url_classifier: string;

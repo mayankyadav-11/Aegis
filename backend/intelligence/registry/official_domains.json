@@ -1,0 +1,339 @@
+{
+  "sbi.co.in": {
+    "brand_id": "sbi",
+    "brand_name": "State Bank of India",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "onlinesbi.sbi": {
+    "brand_id": "sbi",
+    "brand_name": "State Bank of India",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "retail_and_corporate_internet_banking"
+  },
+  "onlinesbi.com": {
+    "brand_id": "sbi",
+    "brand_name": "State Bank of India",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "legacy_internet_banking_portal"
+  },
+  "hdfcbank.com": {
+    "brand_id": "hdfc",
+    "brand_name": "HDFC Bank",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "hdfcbk.io": {
+    "brand_id": "hdfc",
+    "brand_name": "HDFC Bank",
+    "is_primary": false,
+    "verification_status": "unverified",
+    "purpose": "claimed_sms_shortlink"
+  },
+  "icicibank.com": {
+    "brand_id": "icici",
+    "brand_name": "ICICI Bank",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "axisbank.com": {
+    "brand_id": "axis",
+    "brand_name": "Axis Bank",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "kotak.com": {
+    "brand_id": "kotak",
+    "brand_name": "Kotak Mahindra Bank",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "pnbindia.in": {
+    "brand_id": "pnb",
+    "brand_name": "Punjab National Bank",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "bankofbaroda.in": {
+    "brand_id": "bob",
+    "brand_name": "Bank of Baroda",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "bankofbaroda.com": {
+    "brand_id": "bob",
+    "brand_name": "Bank of Baroda",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "secondary_portal"
+  },
+  "rbi.org.in": {
+    "brand_id": "rbi",
+    "brand_name": "Reserve Bank of India",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "incometax.gov.in": {
+    "brand_id": "income_tax",
+    "brand_name": "Income Tax Department",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "uidai.gov.in": {
+    "brand_id": "uidai",
+    "brand_name": "Unique Identification Authority of India",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "myaadhaar.uidai.gov.in": {
+    "brand_id": "uidai",
+    "brand_name": "Unique Identification Authority of India",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "citizen_aadhaar_services"
+  },
+  "indiapost.gov.in": {
+    "brand_id": "india_post",
+    "brand_name": "India Post",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "epfindia.gov.in": {
+    "brand_id": "epfo",
+    "brand_name": "Employees' Provident Fund Organisation",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "ajio.com": {
+    "brand_id": "ajio",
+    "brand_name": "AJIO",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "ajioin.in": {
+    "brand_id": "ajio",
+    "brand_name": "AJIO",
+    "is_primary": false,
+    "verification_status": "unverified",
+    "purpose": "claimed_sms_campaign_tracking"
+  },
+  "amazon.in": {
+    "brand_id": "amazon_india",
+    "brand_name": "Amazon India",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "amzn.to": {
+    "brand_id": "amazon_india",
+    "brand_name": "Amazon India",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "official_shortlink"
+  },
+  "amzn.in": {
+    "brand_id": "amazon_india",
+    "brand_name": "Amazon India",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "official_shortlink_india"
+  },
+  "flipkart.com": {
+    "brand_id": "flipkart",
+    "brand_name": "Flipkart",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "fkrt.it": {
+    "brand_id": "flipkart",
+    "brand_name": "Flipkart",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "official_shortlink"
+  },
+  "myntra.com": {
+    "brand_id": "myntra",
+    "brand_name": "Myntra",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "paytm.com": {
+    "brand_id": "paytm",
+    "brand_name": "Paytm",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "pytm.co": {
+    "brand_id": "paytm",
+    "brand_name": "Paytm",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "official_shortlink"
+  },
+  "phonepe.com": {
+    "brand_id": "phonepe",
+    "brand_name": "PhonePe",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "pay.google.com": {
+    "brand_id": "google_pay",
+    "brand_name": "Google Pay",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "g.co": {
+    "brand_id": "google_pay",
+    "brand_name": "Google Pay",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "google_official_shortener"
+  },
+  "bhimupi.org.in": {
+    "brand_id": "bhim",
+    "brand_name": "BHIM UPI",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "npci.org.in": {
+    "brand_id": "bhim",
+    "brand_name": "BHIM UPI",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "parent_organization_portal"
+  },
+  "bluedart.com": {
+    "brand_id": "bluedart",
+    "brand_name": "Blue Dart Express",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "delhivery.com": {
+    "brand_id": "delhivery",
+    "brand_name": "Delhivery",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "microsoft.com": {
+    "brand_id": "microsoft",
+    "brand_name": "Microsoft",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "live.com": {
+    "brand_id": "microsoft",
+    "brand_name": "Microsoft",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "consumer_identity_and_mail"
+  },
+  "office.com": {
+    "brand_id": "microsoft",
+    "brand_name": "Microsoft",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "microsoft_365_cloud_apps"
+  },
+  "msft.it": {
+    "brand_id": "microsoft",
+    "brand_name": "Microsoft",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "official_shortlink"
+  },
+  "google.com": {
+    "brand_id": "google",
+    "brand_name": "Google",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "gmail.com": {
+    "brand_id": "google",
+    "brand_name": "Google",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "consumer_mail_service"
+  },
+  "google.co.in": {
+    "brand_id": "google",
+    "brand_name": "Google",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "india_regional_search"
+  },
+  "apple.com": {
+    "brand_id": "apple",
+    "brand_name": "Apple",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "icloud.com": {
+    "brand_id": "apple",
+    "brand_name": "Apple",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "cloud_storage_and_mail"
+  },
+  "meta.com": {
+    "brand_id": "meta",
+    "brand_name": "Meta",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  },
+  "facebook.com": {
+    "brand_id": "meta",
+    "brand_name": "Meta",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "social_network"
+  },
+  "instagram.com": {
+    "brand_id": "meta",
+    "brand_name": "Meta",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "social_network_media"
+  },
+  "whatsapp.com": {
+    "brand_id": "meta",
+    "brand_name": "Meta",
+    "is_primary": false,
+    "verification_status": "verified",
+    "purpose": "messaging_service"
+  },
+  "netflix.com": {
+    "brand_id": "netflix",
+    "brand_name": "Netflix",
+    "is_primary": true,
+    "verification_status": "verified",
+    "purpose": "official_primary_domain"
+  }
+}
+

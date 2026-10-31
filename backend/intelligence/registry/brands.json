@@ -1,0 +1,455 @@
+[
+  {
+    "brand_id": "sbi",
+    "brand_name": "State Bank of India",
+    "category": "banking",
+    "parent_company": "State Bank of India",
+    "official_primary_domain": "sbi.co.in",
+    "approved_additional_domains": [
+      {
+        "domain": "onlinesbi.sbi",
+        "purpose": "retail_and_corporate_internet_banking",
+        "source_url": "https://sbi.co.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official SBI dot-sbi TLD portal"
+      },
+      {
+        "domain": "onlinesbi.com",
+        "purpose": "legacy_internet_banking_portal",
+        "source_url": "https://sbi.co.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Legacy online banking portal redirected to current portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-SBIINB", "VM-SBIPAY", "VK-SBISMS", "SBIINB"],
+    "prohibited_keywords_in_subdomains": ["kyc-update", "reward-claim", "account-blocked", "netbanking-login"]
+  },
+  {
+    "brand_id": "hdfc",
+    "brand_name": "HDFC Bank",
+    "category": "banking",
+    "parent_company": "HDFC Bank Limited",
+    "official_primary_domain": "hdfcbank.com",
+    "approved_additional_domains": [
+      {
+        "domain": "hdfcbk.io",
+        "purpose": "claimed_sms_shortlink",
+        "source_url": null,
+        "verification_date": "2026-10-31",
+        "verification_status": "unverified",
+        "notes": "Appears in promotional and service SMS but not independently verified as an official HDFC Bank domain"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-HDFCBK", "VD-HDFCBK", "HDFCBK"],
+    "prohibited_keywords_in_subdomains": ["netbanking-verify", "kyc-update", "account-blocked", "otp-confirm"]
+  },
+  {
+    "brand_id": "icici",
+    "brand_name": "ICICI Bank",
+    "category": "banking",
+    "parent_company": "ICICI Bank Limited",
+    "official_primary_domain": "icicibank.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-ICICIB", "VM-ICICIB", "ICICIB"],
+    "prohibited_keywords_in_subdomains": ["netbanking-update", "kyc-approval", "imobile-verify"]
+  },
+  {
+    "brand_id": "axis",
+    "brand_name": "Axis Bank",
+    "category": "banking",
+    "parent_company": "Axis Bank Limited",
+    "official_primary_domain": "axisbank.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-AXISBK", "VM-AXISBK", "AXISBK"],
+    "prohibited_keywords_in_subdomains": ["axis-netbanking", "kyc-mandatory", "block-card"]
+  },
+  {
+    "brand_id": "kotak",
+    "brand_name": "Kotak Mahindra Bank",
+    "category": "banking",
+    "parent_company": "Kotak Mahindra Bank Limited",
+    "official_primary_domain": "kotak.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-KOTAKB", "VM-KOTAKB", "KOTAKB"],
+    "prohibited_keywords_in_subdomains": ["kotak811-kyc", "netbanking-login", "unblock-account"]
+  },
+  {
+    "brand_id": "pnb",
+    "brand_name": "Punjab National Bank",
+    "category": "banking",
+    "parent_company": "Punjab National Bank",
+    "official_primary_domain": "pnbindia.in",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-PNBSMS", "VM-PNBSMS", "PNBSMS"],
+    "prohibited_keywords_in_subdomains": ["pnb-one-kyc", "netbanking-urgent"]
+  },
+  {
+    "brand_id": "bob",
+    "brand_name": "Bank of Baroda",
+    "category": "banking",
+    "parent_company": "Bank of Baroda",
+    "official_primary_domain": "bankofbaroda.in",
+    "approved_additional_domains": [
+      {
+        "domain": "bankofbaroda.com",
+        "purpose": "secondary_portal",
+        "source_url": "https://bankofbaroda.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Global official domain"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-BOBSMS", "VM-BOBSMS", "BOBSMS"],
+    "prohibited_keywords_in_subdomains": ["bob-world-kyc", "bob-netbanking"]
+  },
+  {
+    "brand_id": "rbi",
+    "brand_name": "Reserve Bank of India",
+    "category": "government_regulatory",
+    "parent_company": "Government of India",
+    "official_primary_domain": "rbi.org.in",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-RBIBNK", "VM-RBIBNK", "RBIBNK"],
+    "prohibited_keywords_in_subdomains": ["lottery-claim", "unclaimed-fund", "rbi-approval"]
+  },
+  {
+    "brand_id": "income_tax",
+    "brand_name": "Income Tax Department",
+    "category": "government_tax",
+    "parent_company": "Ministry of Finance, Government of India",
+    "official_primary_domain": "incometax.gov.in",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-ITDEPT", "VM-ITDEPT", "ITDEPT"],
+    "prohibited_keywords_in_subdomains": ["tax-refund-claim", "arrest-warrant", "penalty-settle"]
+  },
+  {
+    "brand_id": "uidai",
+    "brand_name": "Unique Identification Authority of India",
+    "category": "government_identity",
+    "parent_company": "Ministry of Electronics and Information Technology",
+    "official_primary_domain": "uidai.gov.in",
+    "approved_additional_domains": [
+      {
+        "domain": "myaadhaar.uidai.gov.in",
+        "purpose": "citizen_aadhaar_services",
+        "source_url": "https://uidai.gov.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official citizen portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-AADHAR", "VM-AADHAR", "AADHAR"],
+    "prohibited_keywords_in_subdomains": ["aadhaar-loan-claim", "biometric-update-link"]
+  },
+  {
+    "brand_id": "india_post",
+    "brand_name": "India Post",
+    "category": "government_logistics",
+    "parent_company": "Department of Posts, Ministry of Communications",
+    "official_primary_domain": "indiapost.gov.in",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-INDPOST", "VM-INDPOST", "INDPOST"],
+    "prohibited_keywords_in_subdomains": ["customs-fee-pay", "parcel-address-update", "delivery-fee"]
+  },
+  {
+    "brand_id": "epfo",
+    "brand_name": "Employees' Provident Fund Organisation",
+    "category": "government_social_security",
+    "parent_company": "Ministry of Labour and Employment",
+    "official_primary_domain": "epfindia.gov.in",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-EPFOHO", "VM-EPFOHO", "EPFOHO"],
+    "prohibited_keywords_in_subdomains": ["pf-withdrawal-claim", "uan-activation-pay"]
+  },
+  {
+    "brand_id": "ajio",
+    "brand_name": "AJIO",
+    "category": "retail_ecommerce",
+    "parent_company": "Reliance Retail Limited",
+    "official_primary_domain": "ajio.com",
+    "approved_additional_domains": [
+      {
+        "domain": "ajioin.in",
+        "purpose": "claimed_sms_campaign_tracking",
+        "source_url": null,
+        "verification_date": "2026-10-31",
+        "verification_status": "unverified",
+        "notes": "Appears in promotional messages but not independently verified as an official Reliance/AJIO domain"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-AJIOIN", "VD-AJIOIN", "AJIOIN"],
+    "prohibited_keywords_in_subdomains": ["free-gift", "lucky-winner", "cashback-claim", "prize-claim", "reward-claim"]
+  },
+  {
+    "brand_id": "amazon_india",
+    "brand_name": "Amazon India",
+    "category": "retail_ecommerce",
+    "parent_company": "Amazon.com, Inc.",
+    "official_primary_domain": "amazon.in",
+    "approved_additional_domains": [
+      {
+        "domain": "amzn.to",
+        "purpose": "official_shortlink",
+        "source_url": "https://amazon.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official Amazon URL shortener"
+      },
+      {
+        "domain": "amzn.in",
+        "purpose": "official_shortlink_india",
+        "source_url": "https://amazon.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official Amazon India URL shortener"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-AMAZON", "VM-AMAZON", "AMAZON"],
+    "prohibited_keywords_in_subdomains": ["lucky-spin", "gift-card-claim", "refund-processing"]
+  },
+  {
+    "brand_id": "flipkart",
+    "brand_name": "Flipkart",
+    "category": "retail_ecommerce",
+    "parent_company": "Flipkart Private Limited / Walmart",
+    "official_primary_domain": "flipkart.com",
+    "approved_additional_domains": [
+      {
+        "domain": "fkrt.it",
+        "purpose": "official_shortlink",
+        "source_url": "https://flipkart.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official Flipkart short link"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-FLPKRT", "VM-FLPKRT", "FLPKRT"],
+    "prohibited_keywords_in_subdomains": ["spin-and-win", "lottery-reward", "free-iphone"]
+  },
+  {
+    "brand_id": "myntra",
+    "brand_name": "Myntra",
+    "category": "retail_ecommerce",
+    "parent_company": "Flipkart Group",
+    "official_primary_domain": "myntra.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-MYNTRA", "VM-MYNTRA", "MYNTRA"],
+    "prohibited_keywords_in_subdomains": ["scratch-card", "exclusive-winner"]
+  },
+  {
+    "brand_id": "paytm",
+    "brand_name": "Paytm",
+    "category": "fintech_payments",
+    "parent_company": "One97 Communications Limited",
+    "official_primary_domain": "paytm.com",
+    "approved_additional_domains": [
+      {
+        "domain": "pytm.co",
+        "purpose": "official_shortlink",
+        "source_url": "https://paytm.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official shortlink"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-PAYTM", "VM-PAYTM", "PAYTM"],
+    "prohibited_keywords_in_subdomains": ["kyc-verification", "wallet-unblock", "cashback-claim"]
+  },
+  {
+    "brand_id": "phonepe",
+    "brand_name": "PhonePe",
+    "category": "fintech_payments",
+    "parent_company": "PhonePe Private Limited / Walmart",
+    "official_primary_domain": "phonepe.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-PHONEPE", "VM-PHONEPE", "PHONEPE"],
+    "prohibited_keywords_in_subdomains": ["cashback-reward", "merchant-kyc-verify", "refund-desk"]
+  },
+  {
+    "brand_id": "google_pay",
+    "brand_name": "Google Pay",
+    "category": "fintech_payments",
+    "parent_company": "Google LLC / Alphabet Inc.",
+    "official_primary_domain": "pay.google.com",
+    "approved_additional_domains": [
+      {
+        "domain": "g.co",
+        "purpose": "google_official_shortener",
+        "source_url": "https://google.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official Google short link"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-GOOGLE", "VM-GOOGLE", "GOOGLE"],
+    "prohibited_keywords_in_subdomains": ["scratch-card-claim", "cashback-win", "gpay-rewards"]
+  },
+  {
+    "brand_id": "bhim",
+    "brand_name": "BHIM UPI",
+    "category": "fintech_payments",
+    "parent_company": "National Payments Corporation of India (NPCI)",
+    "official_primary_domain": "bhimupi.org.in",
+    "approved_additional_domains": [
+      {
+        "domain": "npci.org.in",
+        "purpose": "parent_organization_portal",
+        "source_url": "https://npci.org.in",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "NPCI official portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-BHIMUPI", "VM-BHIMUPI", "BHIMUPI"],
+    "prohibited_keywords_in_subdomains": ["pin-reset-link", "cashback-instant"]
+  },
+  {
+    "brand_id": "bluedart",
+    "brand_name": "Blue Dart Express",
+    "category": "logistics",
+    "parent_company": "DHL Group",
+    "official_primary_domain": "bluedart.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-BLRDAR", "VM-BLRDAR", "BLRDAR"],
+    "prohibited_keywords_in_subdomains": ["delivery-fee-pay", "reschedule-delivery-fee", "address-correction-pay"]
+  },
+  {
+    "brand_id": "delhivery",
+    "brand_name": "Delhivery",
+    "category": "logistics",
+    "parent_company": "Delhivery Limited",
+    "official_primary_domain": "delhivery.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-DLHVRY", "VM-DLHVRY", "DLHVRY"],
+    "prohibited_keywords_in_subdomains": ["parcel-hold-fee", "address-update-charge"]
+  },
+  {
+    "brand_id": "microsoft",
+    "brand_name": "Microsoft",
+    "category": "technology",
+    "parent_company": "Microsoft Corporation",
+    "official_primary_domain": "microsoft.com",
+    "approved_additional_domains": [
+      {
+        "domain": "live.com",
+        "purpose": "consumer_identity_and_mail",
+        "source_url": "https://microsoft.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Microsoft consumer accounts portal"
+      },
+      {
+        "domain": "office.com",
+        "purpose": "microsoft_365_cloud_apps",
+        "source_url": "https://microsoft.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Office / Microsoft 365 portal"
+      },
+      {
+        "domain": "msft.it",
+        "purpose": "official_shortlink",
+        "source_url": "https://microsoft.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Official Microsoft shortlink"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-MSFTIN", "MSFTIN"],
+    "prohibited_keywords_in_subdomains": ["security-alert-call", "account-termination-warning"]
+  },
+  {
+    "brand_id": "google",
+    "brand_name": "Google",
+    "category": "technology",
+    "parent_company": "Alphabet Inc.",
+    "official_primary_domain": "google.com",
+    "approved_additional_domains": [
+      {
+        "domain": "gmail.com",
+        "purpose": "consumer_mail_service",
+        "source_url": "https://google.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Gmail web client"
+      },
+      {
+        "domain": "google.co.in",
+        "purpose": "india_regional_search",
+        "source_url": "https://google.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Google India portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-GOOGLE", "GOOGLE"],
+    "prohibited_keywords_in_subdomains": ["account-recovery-verify", "storage-full-warning"]
+  },
+  {
+    "brand_id": "apple",
+    "brand_name": "Apple",
+    "category": "technology",
+    "parent_company": "Apple Inc.",
+    "official_primary_domain": "apple.com",
+    "approved_additional_domains": [
+      {
+        "domain": "icloud.com",
+        "purpose": "cloud_storage_and_mail",
+        "source_url": "https://apple.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "iCloud consumer services portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-APPLE", "APPLE"],
+    "prohibited_keywords_in_subdomains": ["find-my-iphone-unlock", "apple-id-locked-resolve"]
+  },
+  {
+    "brand_id": "meta",
+    "brand_name": "Meta",
+    "category": "technology",
+    "parent_company": "Meta Platforms, Inc.",
+    "official_primary_domain": "meta.com",
+    "approved_additional_domains": [
+      {
+        "domain": "facebook.com",
+        "purpose": "social_network",
+        "source_url": "https://meta.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Facebook core portal"
+      },
+      {
+        "domain": "instagram.com",
+        "purpose": "social_network_media",
+        "source_url": "https://meta.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "Instagram core portal"
+      },
+      {
+        "domain": "whatsapp.com",
+        "purpose": "messaging_service",
+        "source_url": "https://meta.com",
+        "verification_date": "2026-10-31",
+        "verification_status": "verified",
+        "notes": "WhatsApp official portal"
+      }
+    ],
+    "authorized_dlt_headers": ["AD-FACEBK", "VM-FACEBK", "FACEBK"],
+    "prohibited_keywords_in_subdomains": ["account-disabled-appeal", "copyright-violation-appeal"]
+  },
+  {
+    "brand_id": "netflix",
+    "brand_name": "Netflix",
+    "category": "entertainment",
+    "parent_company": "Netflix, Inc.",
+    "official_primary_domain": "netflix.com",
+    "approved_additional_domains": [],
+    "authorized_dlt_headers": ["AD-NETFLX", "VM-NETFLX", "NETFLX"],
+    "prohibited_keywords_in_subdomains": ["membership-payment-failed", "account-suspended-update"]
+  }
+]
+

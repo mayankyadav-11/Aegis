@@ -32,6 +32,15 @@ except ImportError:
 from config import settings
 from schemas import Finding, FindingCategory, FindingSeverity, LinkHop, UrlReputation
 
+try:
+    from intelligence.intelligence_service import intelligence_service, DomainReputationLevel
+except ImportError:
+    try:
+        from backend.intelligence.intelligence_service import intelligence_service, DomainReputationLevel
+    except ImportError:
+        intelligence_service = None
+        DomainReputationLevel = None
+
 
 # ---------------------------------------------------------------------------
 # Suspicious TLDs and Shortener Registries
@@ -83,6 +92,16 @@ TRUSTED_BRAND_REGISTRY: dict[str, list[str]] = {
     "netflix": ["netflix.com"],
     "facebook": ["facebook.com", "fb.com"],
     "instagram": ["instagram.com"],
+    "ajio": ["ajio.com"],
+    "kotak": ["kotak.com"],
+    "bob": ["bankofbaroda.in", "bankofbaroda.com"],
+    "bhim": ["bhimupi.org.in", "npci.org.in"],
+    "bluedart": ["bluedart.com"],
+    "delhivery": ["delhivery.com"],
+    "myntra": ["myntra.com"],
+    "aadhaar": ["uidai.gov.in"],
+    "myaadhaar": ["uidai.gov.in"],
+    "gpay": ["pay.google.com"],
 }
 
 
@@ -350,29 +369,69 @@ def analyze_url_deterministic(raw_url: str, inspect_links: bool = False) -> UrlA
             source_module="url_inspector",
         ))
 
+    # 5.5 Threat Intelligence & Domain Reputation
+    intel_result = None
+    is_approved_secondary = False
+    is_intel_verified = False
+
+    if intelligence_service is not None:
+        try:
+            intel_result = intelligence_service.lookup_domain_reputation(domain_str)
+            if intel_result.reputation == DomainReputationLevel.KNOWN_MALICIOUS:
+                flags.append("threat_intel_match")
+                score_acc += 75
+                findings.append(Finding(
+                    category=FindingCategory.URL,
+                    severity=FindingSeverity.CRITICAL,
+                    evidence=f"Domain '{domain_str}' matches active threat intelligence feed: {intel_result.source}",
+                    explanation="This domain has been confirmed in threat intelligence feeds associated with phishing, credential theft, or scam campaigns.",
+                    recommended_action="Do not open or interact with this link under any circumstances.",
+                    source_module="threat_intelligence",
+                ))
+            elif intel_result.reputation == DomainReputationLevel.STALE:
+                flags.append("stale_threat_intel")
+                score_acc += 15
+                findings.append(Finding(
+                    category=FindingCategory.URL,
+                    severity=FindingSeverity.LOW,
+                    evidence=f"Historical threat record for '{domain_str}' from {intel_result.source} (exceeds TTL)",
+                    explanation="Historical intelligence exists for this domain, but the record is older than 30 days. Proceed with caution.",
+                    recommended_action="Exercise caution when visiting this domain.",
+                    source_module="threat_intelligence",
+                ))
+            elif intel_result.reputation == DomainReputationLevel.VERIFIED_LEGITIMATE:
+                is_intel_verified = True
+
+            if intel_result.is_approved_secondary:
+                is_approved_secondary = True
+        except Exception:
+            pass
+
     # 6. Brand Impersonation & Typosquatting Analysis
     full_url_lower = raw_url.lower()
     combined_domain_text = (hostname + " " + path).lower()
 
-    for brand, trusted_domains in TRUSTED_BRAND_REGISTRY.items():
-        # Check if brand name appears in hostname or subdomain
-        brand_in_host = brand in hostname.replace("-", "").replace(".", "")
-        if brand_in_host:
-            # Is this actually an official domain?
-            is_legitimate = any(domain_str == td or domain_str.endswith("." + td) for td in trusted_domains)
-            if not is_legitimate:
-                flags.append("brand_in_subdomain")
-                flags.append("typosquatting")
-                score_acc += 50
-                findings.append(Finding(
-                    category=FindingCategory.IMPERSONATION,
-                    severity=FindingSeverity.HIGH,
-                    evidence=f"Brand '{brand.upper()}' targeted on non-official domain '{domain_str}'",
-                    explanation=f"This domain incorporates the protected brand '{brand.upper()}' but is NOT registered to authorized infrastructure ({', '.join(trusted_domains)}).",
-                    recommended_action=f"Navigate only to the verified official portal ({trusted_domains[0]}) directly.",
-                    source_module="brand_impersonation_engine",
-                ))
-                break
+    if not is_intel_verified and not is_approved_secondary:
+        for brand, trusted_domains in TRUSTED_BRAND_REGISTRY.items():
+            # Check if brand name appears in hostname or subdomain
+            brand_in_host = brand in hostname.replace("-", "").replace(".", "")
+            if brand_in_host:
+                # Is this actually an official domain?
+                is_legitimate = any(domain_str == td or domain_str.endswith("." + td) for td in trusted_domains)
+                if not is_legitimate:
+                    flags.append("brand_in_subdomain")
+                    flags.append("typosquatting")
+                    impersonation_score = 25 if (intel_result and intel_result.reputation == DomainReputationLevel.KNOWN_MALICIOUS) else 50
+                    score_acc += impersonation_score
+                    findings.append(Finding(
+                        category=FindingCategory.IMPERSONATION,
+                        severity=FindingSeverity.HIGH,
+                        evidence=f"Brand '{brand.upper()}' targeted on non-official domain '{domain_str}'",
+                        explanation=f"This domain incorporates the protected brand '{brand.upper()}' but is NOT registered to authorized infrastructure ({', '.join(trusted_domains)}).",
+                        recommended_action=f"Navigate only to the verified official portal ({trusted_domains[0]}) directly.",
+                        source_module="brand_impersonation_engine",
+                    ))
+                    break
 
     # 7. Suspicious Keywords in Path/Query
     found_keywords = [kw for kw in SUSPICIOUS_KEYWORDS if kw in combined_domain_text]

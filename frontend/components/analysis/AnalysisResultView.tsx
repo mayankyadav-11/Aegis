@@ -18,8 +18,15 @@ import {
   FileText,
   Clock,
   Fingerprint,
+  Download,
+  CheckCircle2,
+  FileCheck,
+  FileCode,
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
-import { AnalysisResult, FindingSeverity, RiskLevel, Verdict } from '@/types';
+import { AnalysisResult, FindingSeverity, RiskLevel, Verdict, EvidenceVerifyResult } from '@/types';
+import { downloadReport, verifyCaseEvidence, getStoredToken } from '@/lib/api';
 
 interface AnalysisResultViewProps {
   result: AnalysisResult;
@@ -28,12 +35,46 @@ interface AnalysisResultViewProps {
 
 export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps) {
   const [copiedHash, setCopiedHash] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<EvidenceVerifyResult | null>(null);
 
   const copyEvidenceHash = () => {
     if (result.evidence_hash) {
       navigator.clipboard.writeText(result.evidence_hash);
       setCopiedHash(true);
       setTimeout(() => setCopiedHash(false), 2000);
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    setIsDownloading(true);
+    try {
+      const isEnterprise = Boolean(getStoredToken());
+      await downloadReport(result.case_id, isEnterprise);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Report download failed.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleVerifyEvidence = async () => {
+    setIsVerifying(true);
+    try {
+      const isEnterprise = Boolean(getStoredToken());
+      const res = await verifyCaseEvidence(result.case_id, isEnterprise);
+      setVerificationResult(res);
+    } catch (err: unknown) {
+      setVerificationResult({
+        case_id: result.case_id,
+        verified: false,
+        computed_hash: 'N/A',
+        recorded_hash: result.evidence_hash || 'N/A',
+        message: err instanceof Error ? err.message : 'Verification request failed.',
+      });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -91,9 +132,14 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
   };
 
   const colors = getRiskColors(result.risk_level);
-  const isFallback = result.unavailable_checks.some((c) =>
-    c.toLowerCase().includes('gemini') || c.toLowerCase().includes('api key')
-  );
+  const isFallback =
+    result.ai_status?.mode === 'python_fallback' ||
+    (!result.ai_status &&
+      result.unavailable_checks.some(
+        (c) => c.toLowerCase().includes('gemini') || c.toLowerCase().includes('api key')
+      ));
+  const isFullAi = result.ai_status?.mode === 'full_ai' || (!isFallback && !result.ai_status);
+  const completeness = result.analysis_completeness?.level || (isFullAi ? 'complete' : 'partial');
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -110,22 +156,46 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-base font-semibold text-[#F5F5F7]">
                 {result.case_id}
               </span>
               <span className="uppercase text-[11px] font-mono tracking-wider px-2 py-0.5 rounded-md bg-[#13131A] text-[#9A9AAE] border border-[#1C1C26]">
                 {result.input_type}
               </span>
-              {isFallback ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#1C1C26] text-[#9A9AAE]">
-                  <Cpu className="w-3 h-3 text-[#9A9AAE]" />
-                  Deterministic Engine
+
+              {result.file_name && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-[#13131A] text-[#00E5FF] border border-[#1C1C26]">
+                  {result.input_type === 'screenshot' ? (
+                    <ImageIcon className="w-3 h-3 text-[#00E5FF]" />
+                  ) : (
+                    <FileText className="w-3 h-3 text-[#7B3FE4]" />
+                  )}
+                  {result.file_name}
+                </span>
+              )}
+
+              {isFullAi ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30">
+                  <Sparkles className="w-3 h-3 text-[#10B981]" />
+                  Full AI Mode (Gemini + Python)
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#7B3FE4]/15 text-[#00E5FF] border border-[#7B3FE4]/30">
-                  <Sparkles className="w-3 h-3 text-[#00E5FF]" />
-                  Gemini AI Assisted
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
+                  <Cpu className="w-3 h-3 text-[#F59E0B]" />
+                  Python Fallback Mode
+                </span>
+              )}
+
+              {completeness === 'inconclusive' && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30">
+                  <AlertTriangle className="w-3 h-3 text-[#EF4444]" />
+                  Inconclusive Evidence
+                </span>
+              )}
+              {completeness === 'partial' && !isFullAi && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#9A9AAE]/15 text-[#9A9AAE] border border-[#1C1C26]">
+                  Partial Analysis
                 </span>
               )}
             </div>
@@ -134,20 +204,76 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
               <span>{new Date(result.created_at).toLocaleString()}</span>
               <span>•</span>
               <span>Confidence: <strong className="uppercase text-[#F5F5F7]">{result.confidence}</strong></span>
+              <span>•</span>
+              <span className="capitalize">Completeness: <strong className="text-[#F5F5F7]">{completeness}</strong></span>
             </div>
           </div>
         </div>
 
-        {onReset && (
+        {/* Action Buttons: PDF Report & Reset */}
+        <div className="flex items-center gap-2 self-start sm:self-center">
           <button
-            onClick={onReset}
-            className="self-start sm:self-center inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#9A9AAE] hover:text-[#F5F5F7] bg-[#13131A] hover:bg-[#1A1A24] border border-[#1C1C26] rounded-lg transition-colors"
+            onClick={handleDownloadReport}
+            disabled={isDownloading}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#00E5FF] bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/30 rounded-lg transition-colors disabled:opacity-50"
+            title="Download Tamper-Evident PDF Report"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Analyze Another
+            {isDownloading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            <span>PDF Report</span>
           </button>
-        )}
+
+          {onReset && (
+            <button
+              onClick={onReset}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#9A9AAE] hover:text-[#F5F5F7] bg-[#13131A] hover:bg-[#1A1A24] border border-[#1C1C26] rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>New Analysis</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Engine Operating Status Strip */}
+      {isFallback ? (
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-xs text-[#F59E0B]">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">Python Fallback Mode Active: </span>
+            <span>
+              {result.ai_status?.message ||
+                'Gemini AI contextual analysis was not performed. The investigation relies exclusively on deterministic security rules, brand heuristics, and URL inspection.'}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#10B981]/10 border border-[#10B981]/30 text-xs text-[#10B981]">
+          <Sparkles className="w-4 h-4 shrink-0 text-[#10B981]" />
+          <div className="flex-1">
+            <span className="font-semibold">Full AI Mode Active: </span>
+            <span>
+              {result.ai_status?.message ||
+                `Gemini (${result.ai_status?.model || '2.5-flash'}) contextual threat analysis and Python deterministic security checks were both executed.`}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {completeness === 'inconclusive' && (
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/30 text-xs text-[#EF4444]">
+          <ShieldAlert className="w-4 h-4 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">Inconclusive Result: </span>
+            <span>
+              The submitted screenshot or scanned document cannot be conclusively verified without Gemini Vision API. No threat or safety verdict has been fabricated.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Score & Verdict Hero Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -245,6 +371,19 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
           </div>
         </div>
       </div>
+
+      {/* Extracted Message Content (if present from PDF, EML or OCR) */}
+      {result.extracted_text && (
+        <div className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26]">
+          <h4 className="text-xs uppercase tracking-wider font-semibold text-[#9A9AAE] mb-3 flex items-center gap-2">
+            <FileCode className="w-3.5 h-3.5 text-[#00E5FF]" />
+            Transcribed / Extracted Content Payload
+          </h4>
+          <div className="p-3.5 rounded-xl bg-[#13131A] border border-[#1C1C26] text-xs font-mono text-[#F5F5F7] max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+            {result.extracted_text}
+          </div>
+        </div>
+      )}
 
       {/* Explainable Findings List */}
       <div className="p-6 rounded-2xl bg-[#0D0D12] border border-[#1C1C26]">
@@ -435,7 +574,7 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
                     key={cIdx}
                     className="text-xs text-[#9A9AAE] font-mono flex items-center gap-2 p-2 rounded-md bg-[#13131A]"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] shrink-0" />
                     <span>{chk}</span>
                   </li>
                 ))}
@@ -443,16 +582,25 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
             )}
           </div>
 
-          {/* Cryptographic Evidence Hash */}
-          <div className="pt-4 border-t border-[#1C1C26]">
-            <div className="flex items-center justify-between mb-2">
+          {/* Cryptographic Evidence Hash & Verification Section */}
+          <div className="pt-4 border-t border-[#1C1C26] space-y-3">
+            <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-[#9A9AAE] font-medium flex items-center gap-1.5">
                 <Fingerprint className="w-3.5 h-3.5 text-[#00E5FF]" />
-                Evidence SHA-256 Digest
+                Digital Evidence SHA-256 Digest
               </span>
-              <span className="text-[10px] font-mono text-[#9A9AAE] uppercase px-2 py-0.5 rounded bg-[#1C1C26]">
-                {result.blockchain_status.replace('_', ' ')}
-              </span>
+              <button
+                onClick={handleVerifyEvidence}
+                disabled={isVerifying}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#00E5FF] hover:text-white px-2 py-0.5 rounded bg-[#1C1C26] hover:bg-[#7B3FE4] border border-[#2A2A3A] transition-colors"
+              >
+                {isVerifying ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <FileCheck className="w-3 h-3" />
+                )}
+                <span>Verify Integrity</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#13131A] border border-[#1C1C26]">
@@ -469,10 +617,37 @@ export function AnalysisResultView({ result, onReset }: AnalysisResultViewProps)
                 </button>
               )}
             </div>
+
+            {/* Verification Result Banner */}
+            {verificationResult && (
+              <div
+                className={`p-3 rounded-lg border text-xs leading-relaxed space-y-1 ${
+                  verificationResult.verified
+                    ? 'bg-[#10B981]/10 border-[#10B981]/30 text-[#F5F5F7]'
+                    : 'bg-[#EF4444]/10 border-[#EF4444]/30 text-[#EF4444]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold">
+                  {verificationResult.verified ? (
+                    <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-[#EF4444]" />
+                  )}
+                  <span>
+                    {verificationResult.verified ? 'Cryptographic Integrity Confirmed' : 'Integrity Mismatch Detected'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#9A9AAE]">
+                  {verificationResult.message}
+                </p>
+                <p className="text-[10px] text-[#626274] pt-0.5">
+                  Authenticity Disclaimer: A successful verification confirms that the recorded investigation case has not been altered since generation; it does not establish the sender&apos;s real-world identity.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

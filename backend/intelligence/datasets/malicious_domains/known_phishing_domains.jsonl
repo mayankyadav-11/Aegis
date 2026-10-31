@@ -1,0 +1,14 @@
+{"domain": "sbi-kyc-update.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "sbi", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic phishing domain targeting SBI KYC"}
+{"domain": "hdfc-netbanking-verify.top", "verdict": "malicious", "category": "phishing", "brand_target": "hdfc", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic phishing domain targeting HDFC Netbanking"}
+{"domain": "icici-imobile-login.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "icici", "source": "threat_intel_sample", "confidence": 0.90, "notes": "Synthetic ICICI credentials portal"}
+{"domain": "ajio-claim-reward.xyz", "verdict": "malicious", "category": "scam", "brand_target": "ajio", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic AJIO lottery reward phishing domain"}
+{"domain": "flipkart-winner-prize.xyz", "verdict": "malicious", "category": "scam", "brand_target": "flipkart", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic Flipkart winner scam domain"}
+{"domain": "paytm-kyc.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "paytm", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic Paytm KYC verification phishing"}
+{"domain": "electricity-bill-pay.xyz", "verdict": "malicious", "category": "scam", "brand_target": "utility", "source": "threat_intel_sample", "confidence": 0.90, "notes": "Synthetic electricity bill disconnection scam"}
+{"domain": "indiapost-customs-fee.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "india_post", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic India Post fake customs parcel delivery site"}
+{"domain": "income-tax-refund2026.top", "verdict": "malicious", "category": "phishing", "brand_target": "income_tax", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic income tax fake refund portal"}
+{"domain": "epfo-claim-status.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "epfo", "source": "threat_intel_sample", "confidence": 0.90, "notes": "Synthetic EPFO claim advance phishing"}
+{"domain": "amazon-india-offer.xyz", "verdict": "malicious", "category": "scam", "brand_target": "amazon_india", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic Amazon India fake gift scam"}
+{"domain": "sbi.netbanking-login.top", "verdict": "malicious", "category": "phishing", "brand_target": "sbi", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic subdomain abuse SBI portal"}
+{"domain": "upi-pin-update.xyz", "verdict": "malicious", "category": "phishing", "brand_target": "bhim", "source": "threat_intel_sample", "confidence": 0.95, "notes": "Synthetic UPI PIN trap domain"}
+
