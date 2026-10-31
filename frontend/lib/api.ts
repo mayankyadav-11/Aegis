@@ -5,7 +5,6 @@ import {
   CaseListResponse,
   EvidenceVerifyResult,
   MetricsResult,
-  RedTeamResult,
   SystemHealth,
 } from '@/types';
 
@@ -329,7 +328,7 @@ export async function checkHealth(): Promise<{
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(`${API_BASE_URL}/health`, {
+    const res = await fetch(`${API_BASE_URL}/api/metrics`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: controller.signal,
@@ -520,7 +519,7 @@ export async function analyzeFile(formData: FormData): Promise<AnalysisResult> {
  * Enterprise Authentication APIs
  */
 export async function enterpriseLogin(email: string, password: string) {
-  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const res = await fetch(`${API_BASE_URL}/api/metrics`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -553,7 +552,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const res = await fetch(`${API_BASE_URL}/api/metrics`, {
       method: 'GET',
       headers: { Accept: 'application/json', ...getAuthHeaders() },
     });
@@ -615,7 +614,7 @@ export async function listCases(params?: {
   const url = `${API_BASE_URL}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(`${API_BASE_URL}/api/metrics`, {
       method: 'GET',
       headers: { Accept: 'application/json', ...getAuthHeaders() },
     });
@@ -659,7 +658,7 @@ export async function clearSession(): Promise<void> {
  */
 export async function downloadReport(caseId: string, isEnterprise = false): Promise<void> {
   const endpoint = isEnterprise ? `/api/cases/${caseId}/report` : `/api/session/cases/${caseId}/report`;
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(`${API_BASE_URL}/api/metrics`, {
     method: 'GET',
     headers: { ...getAuthHeaders() },
   });
@@ -684,7 +683,7 @@ export async function downloadReport(caseId: string, isEnterprise = false): Prom
  */
 export async function verifyCaseEvidence(caseId: string, isEnterprise = false): Promise<EvidenceVerifyResult> {
   const endpoint = isEnterprise ? `/api/cases/${caseId}/verify` : `/api/session/cases/${caseId}/verify`;
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(`${API_BASE_URL}/api/metrics`, {
     method: 'POST',
     headers: { Accept: 'application/json', ...getAuthHeaders() },
   });
@@ -717,7 +716,7 @@ export async function getCase(id: string): Promise<AnalysisResult | null> {
   try {
     const token = getStoredToken();
     const endpoint = token ? `/api/cases/${id}` : `/api/session/cases/${id}`;
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${API_BASE_URL}/api/metrics`, {
       method: 'GET',
       headers: { Accept: 'application/json', ...getAuthHeaders() },
     });
@@ -734,62 +733,24 @@ export async function getCase(id: string): Promise<AnalysisResult | null> {
 }
 
 
-export async function runRedTeam(): Promise<RedTeamResult> {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  return {
-    run_at: new Date().toISOString(),
-    total_variants: 5,
-    resisted: 5,
-    bypassed: 0,
-    variants: [
-      {
-        technique: 'Homoglyph attack (Cyrillic a/o in SBI bank name)',
-        original_text: 'Dear SBI customer, update KYC immediately',
-        perturbed_text: 'Deаr SBI custоmer, updаte KYC immediаtely',
-        before_score: 88,
-        after_score: 89,
-        evasion_successful: false,
-      },
-      {
-        technique: 'Zero-width space injection in sensitive terms',
-        original_text: 'Verify your OTP to prevent account suspension',
-        perturbed_text: 'Verify your O​T​P to prevent account sus​pen​sion',
-        before_score: 92,
-        after_score: 91,
-        evasion_successful: false,
-      },
-      {
-        technique: 'Leetspeak character substitution',
-        original_text: 'Urgent: Click here to claim your cash refund',
-        perturbed_text: 'Urg3nt: Cl1ck h3r3 t0 cl41m y0ur c4sh r3fund',
-        before_score: 85,
-        after_score: 87,
-        evasion_successful: false,
-      },
-      {
-        technique: 'URL hex encoding & IP address obfuscation',
-        original_text: 'http://sbi-update.top/login',
-        perturbed_text: 'http://%73%62%69%2d%75%70%64%61%74%65%2e%74%6f%70/%6c%6f%67%69%6e',
-        before_score: 94,
-        after_score: 94,
-        evasion_successful: false,
-      },
-      {
-        technique: 'Hinglish urgent threat phrasing',
-        original_text: 'Aapka bank account aaj raat 12 baje band ho jayega KYC karo',
-        perturbed_text: 'Apka b@nk acnt aj rat 12 bje bnd hojyga kyc kro',
-        before_score: 90,
-        after_score: 88,
-        evasion_successful: false,
-      },
-    ],
-  };
-}
-
 export async function getMetrics(): Promise<MetricsResult> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/metrics`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', ...getAuthHeaders() },
+    });
+    if (res.ok) {
+      const data: MetricsResult = await res.json();
+      return { ...data, is_demo: false };
+    }
+  } catch {
+    // Fall back to mock
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 300));
   return {
     evaluated_at: '2026-10-31T08:00:00.000Z',
+    is_demo: true,
     models: [
       {
         name: 'URL Lexical Classifier (Random Forest + Gradient Boosting)',

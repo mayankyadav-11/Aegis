@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
+import { TransitionProvider } from '@/components/transition/TransitionProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -41,8 +43,12 @@ export default function RootLayout({
       className={`dark ${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-[#050507] text-[#E6E6EA] flex flex-col selection:bg-[#7B3FE4]/30 selection:text-[#00E5FF] overflow-x-hidden font-body">
-        <Navbar />
-        <main className="flex-1 flex flex-col relative">{children}</main>
+        <ToastProvider>
+          <TransitionProvider>
+            <Navbar />
+            <main className="flex-1 flex flex-col relative">{children}</main>
+          </TransitionProvider>
+        </ToastProvider>
       </body>
     </html>
   );

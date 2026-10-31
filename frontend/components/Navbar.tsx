@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 interface SectionLink {
   label: string;
@@ -40,9 +41,9 @@ export function Navbar() {
         pathname.startsWith('/verify'),
     },
     {
-      label: 'Red-Team',
-      href: '/redteam',
-      isActive: pathname.startsWith('/redteam'),
+      label: 'Metrics',
+      href: '/metrics',
+      isActive: pathname.startsWith('/metrics'),
     },
   ];
 
@@ -192,19 +193,30 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Nav Tabs with active indicator — centred */}
-          <nav className="flex items-center gap-5 sm:gap-7 lg:gap-9 font-body text-[14px] font-medium text-[#9A9AAE]">
+          {/* Nav Tabs with sliding active indicator — centred */}
+          <nav className="flex items-center gap-2 sm:gap-5 lg:gap-7 font-body text-[13px] sm:text-[14px] font-medium text-[#9A9AAE]">
             {appNavLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`transition-colors duration-200 py-1 hover:text-[#E6E6EA] ${
-                  link.isActive
-                    ? 'text-[#00E5FF] font-semibold border-b-2 border-[#00E5FF]'
-                    : ''
-                }`}
+                className="relative py-1.5 px-3 rounded-lg transition-colors duration-200 hover:text-[#E6E6EA] group select-none"
               >
-                {link.label}
+                {link.isActive && (
+                  <motion.span
+                    layoutId="appHeaderActiveIndicator"
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-gradient-to-r from-[#7B3FE4] to-[#00E5FF] rounded-full shadow-[0_0_12px_rgba(0,229,255,0.7)]"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                {/* Soft hover glow */}
+                <span className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-r from-[#7B3FE4]/10 to-[#00E5FF]/10 pointer-events-none" />
+                <span
+                  className={`relative z-10 transition-colors duration-200 ${
+                    link.isActive ? 'text-[#00E5FF] font-semibold' : ''
+                  }`}
+                >
+                  {link.label}
+                </span>
               </Link>
             ))}
           </nav>

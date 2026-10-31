@@ -149,23 +149,6 @@ export interface AnalyzeRequest {
   subject?: string;
 }
 
-export interface RedTeamVariantResult {
-  technique: string;
-  original_text: string;
-  perturbed_text: string;
-  before_score: number;
-  after_score: number;
-  evasion_successful: boolean;
-}
-
-export interface RedTeamResult {
-  run_at: string;
-  total_variants: number;
-  resisted: number;
-  bypassed: number;
-  variants: RedTeamVariantResult[];
-}
-
 export interface ModelMetric {
   name: string;
   sample_size: number;
@@ -179,6 +162,7 @@ export interface ModelMetric {
 export interface MetricsResult {
   evaluated_at: string;
   models: ModelMetric[];
+  is_demo?: boolean;
 }
 
 export interface SystemHealth {
