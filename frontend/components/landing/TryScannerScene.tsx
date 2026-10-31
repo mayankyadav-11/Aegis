@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { TransitionLink } from '@/components/transition/TransitionProvider';
 import { motion, useMotionValue, animate, useReducedMotion } from 'framer-motion';
 import { Reveal } from '@/components/Reveal';
 
@@ -579,13 +580,13 @@ export function TryScannerScene() {
 
               {/* Link to live analyzer */}
               <div className="text-center pt-1">
-                <Link
+                <TransitionLink
                   href="/analyze"
                   className="font-mono text-xs sm:text-sm text-[#9A9AAE] hover:text-[#00E5FF] transition-colors inline-flex items-center gap-1.5"
                 >
                   <span>Analyse your own message</span>
                   <span>→</span>
-                </Link>
+                </TransitionLink>
               </div>
             </div>
           </div>
@@ -689,7 +690,7 @@ export function TryScannerScene() {
               <div className="py-14 sm:py-16 flex flex-col items-center justify-center text-center px-4">
                 <div className="w-12 h-12 rounded-full border-2 border-[#1C1C26] border-t-[#00E5FF] animate-spin mb-5" />
                 <h3 className="font-heading font-semibold text-lg sm:text-xl text-[#E6E6EA]">
-                  {activeStep === 0 && 'Normalising character encodings & Unicode homoglyphs...'}
+                  {activeStep === 0 && 'Normalising character encodings & deceptive characters...'}
                   {activeStep === 1 && 'Detecting social engineering intents & urgent coercion...'}
                   {activeStep === 2 && 'Inspecting redirects, shortlinks & domain registries...'}
                   {activeStep === 3 && 'Synthesising indicators into composite threat score...'}

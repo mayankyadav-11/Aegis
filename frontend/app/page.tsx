@@ -12,6 +12,7 @@ import { TryScannerScene } from '@/components/landing/TryScannerScene';
 import { FAQScene } from '@/components/landing/FAQScene';
 import { SectionDivider } from '@/components/landing/SectionDivider';
 import { LandingBackground } from '@/components/landing/LandingBackground';
+import { TransitionLink } from '@/components/transition/TransitionProvider';
 
 export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null);
@@ -101,7 +102,7 @@ export default function LandingPage() {
 
             {/* CTA Pill navigating to /analyze */}
             <div className="relative inline-block mt-[min(2vh,18px)]">
-              <Link
+              <TransitionLink
                 href="/analyze"
                 className="hero-cta-btn relative inline-block group"
               >
@@ -127,7 +128,7 @@ export default function LandingPage() {
                     />
                   </svg>
                 </div>
-              </Link>
+              </TransitionLink>
             </div>
           </motion.div>
         </div>
@@ -212,7 +213,7 @@ export default function LandingPage() {
                 Ready to inspect a suspicious target?
               </h2>
               <div className="mt-10">
-                <Link
+                <TransitionLink
                   href="/analyze"
                   className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#7B3FE4] hover:bg-[#8E54F7] text-white font-heading font-semibold text-[clamp(16px,1.2vw,18px)] transition-all shadow-[0_0_30px_rgba(123,63,228,0.4)] hover:shadow-[0_0_40px_rgba(123,63,228,0.6)]"
                 >
@@ -230,7 +231,7 @@ export default function LandingPage() {
                       d="M14 5l7 7m0 0l-7 7m7-7H3"
                     />
                   </svg>
-                </Link>
+                </TransitionLink>
               </div>
             </div>
           </Reveal>
