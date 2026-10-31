@@ -50,7 +50,10 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-heading)', 'system-ui', 'sans-serif'],
+        body: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
+        sans: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
         'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -59,4 +62,3 @@ module.exports = {
   },
   plugins: [],
 };
-

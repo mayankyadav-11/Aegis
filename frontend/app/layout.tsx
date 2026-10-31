@@ -1,6 +1,28 @@
 import type { Metadata } from 'next';
+import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'AEGIS | AI Phishing & Scam Detection Platform',
@@ -14,20 +36,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="min-h-screen bg-[#050507] text-[#F5F5F7] flex flex-col selection:bg-[#7B3FE4]/30 selection:text-[#00E5FF] overflow-x-hidden font-sans">
+    <html
+      lang="en"
+      className={`dark ${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="min-h-screen bg-[#050507] text-[#E6E6EA] flex flex-col selection:bg-[#7B3FE4]/30 selection:text-[#00E5FF] overflow-x-hidden font-body">
         <Navbar />
         <main className="flex-1 flex flex-col relative">{children}</main>
       </body>
